@@ -3,15 +3,15 @@
 import babel from "@vitejs/plugin-react"
 import path from "path"
 import { defineConfig } from "vite"
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const babelConfig = require("./.babel.mjs.json")
+import babelConfig from "./.babel.mjs.json"
 
 export default defineConfig({
   plugins: [babel({ babel: babelConfig })],
   test: {
     include: ["./test/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     exclude: ["./test/utils/**/*.ts", "./test/**/*.init.ts"],
+    setupFiles: "./test/utils/setup.ts",
+    environment: "jsdom",
     globals: true
   },
   resolve: {
