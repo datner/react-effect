@@ -1,5 +1,4 @@
 import type * as Data from "@effect/data/Data"
-import * as Either from "@effect/data/Either"
 import * as Equal from "@effect/data/Equal"
 import { absurd, dual, identity } from "@effect/data/Function"
 import * as Hash from "@effect/data/Hash"
@@ -30,339 +29,31 @@ export const TypeId: Result.TypeId = Symbol.for(
 ) as Result.TypeId
 
 // -----------------------------------------------------------------------------
-// Constructors
-// -----------------------------------------------------------------------------
-
-/** @internal */
-export class Initial implements Result.Initial {
-  readonly _tag = "Initial"
-  readonly _id: typeof TypeId = TypeId
-  public i0 = undefined
-  public i1 = undefined
-  public i2 = undefined;
-  [Equal.symbol](this: this, that: unknown) {
-    if (!isResult(that)) return false
-    if (isWaiting(that)) {
-      return Equal.equals(that, this)
-    }
-    return isInitial(that)
-  }
-  [Hash.symbol](this: this) {
-    return Hash.hash(this.i0)
-  }
-  get [TypeId]() {
-    return {
-      _D: (_: never) => _,
-      _E: (_: never) => _,
-      _A: (_: never) => _
-    }
-  }
-  toString() {
-    return `initial()`
-  }
-  toJSON() {
-    return {
-      _tag: this._tag
-    }
-  }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
-    return this.toJSON()
-  }
-  pipe() {
-    return pipeArguments(this, arguments)
-  }
-}
-
-/** @internal */
-export class Waiting<Previous extends Result.CurrentResult<any, any, any>> implements Result.Waiting<Previous> {
-  readonly _tag = "Waiting"
-  readonly _id: typeof TypeId = TypeId
-  public i1 = undefined
-  public i2 = undefined
-  constructor(readonly i0: Previous) {}
-  [Equal.symbol](this: this, that: unknown) {
-    return isResult(that) && (isWaiting(that) ?
-      Equal.equals(this.i0, (that as unknown as Waiting<Previous>).i0) :
-      Equal.equals(this.i0, that))
-  }
-  [Hash.symbol](this: this) {
-    return Hash.hash(this.i0)
-  }
-  get previous() {
-    return this.i0
-  }
-  get [TypeId]() {
-    return {
-      _D: (_: never) => _,
-      _E: (_: never) => _,
-      _A: (_: never) => _
-    }
-  }
-  toString() {
-    return `waiting(${String(this.i0)})`
-  }
-  toJSON() {
-    return {
-      _tag: this._tag,
-      previous: this.i0
-    }
-  }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
-    return this.toJSON()
-  }
-  pipe() {
-    return pipeArguments(this, arguments)
-  }
-}
-
-/** @internal */
-export class Fail<E> implements Result.Fail<E> {
-  readonly _tag = "Fail"
-  readonly _id: typeof TypeId = TypeId
-  public i1 = undefined
-  public i2 = undefined
-  constructor(readonly i0: E) {}
-  [Equal.symbol](this: this, that: unknown) {
-    if (!isResult(that)) return false
-    if (isFail(that)) {
-      return Equal.equals((that as unknown as Fail<E>).i0, this.i0)
-    }
-    if (isWaiting(that)) {
-      return Equal.equals(that, this)
-    }
-    return false
-  }
-  [Hash.symbol](this: this) {
-    return Hash.hash(this.i0)
-  }
-  get error() {
-    return this.i0
-  }
-  get [TypeId]() {
-    return {
-      _D: (_: never) => _,
-      _E: (_: never) => _,
-      _A: (_: never) => _
-    }
-  }
-  toString() {
-    return `failure(${String(this.i0)})`
-  }
-  toJSON() {
-    return {
-      _tag: this._tag,
-      error: this.i0
-    }
-  }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
-    return this.toJSON()
-  }
-  pipe() {
-    return pipeArguments(this, arguments)
-  }
-}
-
-/** @internal */
-export class Defect<D> implements Result.Defect<D> {
-  readonly _tag = "Defect"
-  readonly _id: typeof TypeId = TypeId
-  public i1 = undefined
-  public i2 = undefined
-  constructor(readonly i0: Cause.Cause<D>) {}
-  [Equal.symbol](this: this, that: unknown) {
-    if (!isResult(that)) return false
-    if (isDefect(that)) {
-      return Equal.equals((that as unknown as Defect<D>).i0, this.i0)
-    }
-    if (isWaiting(that)) {
-      return Equal.equals(that, this)
-    }
-    return false
-  }
-  [Hash.symbol](this: this) {
-    return Hash.hash(this.i0)
-  }
-  get cause() {
-    return this.i0
-  }
-  get [TypeId]() {
-    return {
-      _D: (_: never) => _,
-      _E: (_: never) => _,
-      _A: (_: never) => _
-    }
-  }
-  toString() {
-    return `defect(${String(this.i0)})`
-  }
-  toJSON() {
-    return {
-      _tag: this._tag,
-      cause: this.i0
-    }
-  }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
-    return this.toJSON()
-  }
-  pipe() {
-    return pipeArguments(this, arguments)
-  }
-}
-
-/** @internal */
-export class Success<A> implements Result.Success<A> {
-  readonly _tag = "Success"
-  readonly _id: typeof TypeId = TypeId
-  public i1 = undefined
-  public i2 = undefined
-  constructor(readonly i0: A) {}
-  [Equal.symbol](this: this, that: unknown) {
-    if (!isResult(that)) return false
-    if (isSuccess(that)) {
-      return Equal.equals((that as unknown as Success<A>).i0, this.i0)
-    }
-    if (isWaiting(that)) {
-      return Equal.equals(that, this)
-    }
-    return false
-  }
-  [Hash.symbol](this: this) {
-    return Hash.hash(this.i0)
-  }
-  get value() {
-    return this.i0
-  }
-  get [TypeId]() {
-    return {
-      _D: (_: never) => _,
-      _E: (_: never) => _,
-      _A: (_: never) => _
-    }
-  }
-  toString() {
-    return `success(${String(this.i0)})`
-  }
-  toJSON() {
-    return {
-      _tag: this._tag,
-      value: this.i0
-    }
-  }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
-    return this.toJSON()
-  }
-  pipe() {
-    return pipeArguments(this, arguments)
-  }
-}
-
-/** @internal */
-export const init: Result.Result<never, never, never> = (() => new Initial())()
-
-/** @internal */
-export const fail = <E>(e: E): Result.Result<never, E, never> => new Fail(e)
-
-/** @internal */
-export const defect = <D>(d: Cause.Cause<D>): Result.Result<D, never, never> => new Defect(d)
-
-/** @internal */
-export const waiting = <D, E, A>(previous: Result.Result<D, E, A>): Result.Result<D, E, A> =>
-  previous._tag === "Waiting" ? previous : new Waiting(previous)
-
-/** @internal */
-export const success = <A>(a: A): Result.Result<never, never, A> => new Success(a)
-
-/** @internal */
-export const fromExitEither = <D, E, A>(
-  exit: Exit.Exit<D, Either.Either<E, A>>
-): Result.Result<D, E, A> => {
-  if (Exit.isFailure(exit)) {
-    return defect(exit.cause)
-  }
-  if (Either.isLeft(exit.value)) {
-    return fail(exit.value.left)
-  }
-  return success(exit.value.right)
-}
-
-// -----------------------------------------------------------------------------
-// Refinements
-// -----------------------------------------------------------------------------
-
-/** @internal */
-export const isResult = (u: unknown): u is Result.Result<unknown, unknown, unknown> =>
-  typeof u === "object" && u != null && TypeId in u && Equal.isEqual(u)
-
-/** @internal */
-export const isInitial = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Initial => self._tag === "Initial"
-
-/** @internal */
-export const isWaiting = <D, E, A>(
-  self: Result.Result<D, E, A>
-): self is Result.Waiting<Result.CurrentResult<D, E, A>> => self._tag === "Waiting"
-
-/** @internal */
-export const isFail = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Fail<E> => self._tag === "Fail"
-
-/** @internal */
-export const isDefect = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Defect<D> => self._tag === "Defect"
-
-/** @internal */
-export const isSuccess = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Success<A> => self._tag === "Success"
-
-/** @internal */
-export const isError = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Defect<D> | Result.Fail<E> =>
-  isFail(self) || isDefect(self)
-
-/** @internal */
-export const isLoading = <D, E, A>(
-  self: Result.Result<D, E, A>
-): self is Result.Waiting<Result.Initial> => isWaiting(self) && isInitial(self.previous)
-
-/** @internal */
-export const isRefreshing = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Waiting<Result.Success<A>> =>
-  isWaiting(self) && isSuccess(self.previous)
-
-/** @internal */
-export const isRetrying = <D, E, A>(self: Result.Result<D, E, A>): self is Result.Waiting<Result.Fail<E>> =>
-  isWaiting(self) && isFail(self.previous)
-
-// -----------------------------------------------------------------------------
 // Getters
 // -----------------------------------------------------------------------------
 
 /** @internal */
-export const getFailure = <D, E, A>(self: Result.Result<D, E, A>): Option.Option<E> =>
-  find<D, E, A, E>(self, (result) =>
-    result._tag === "Fail"
-      ? Option.some(result.error)
+export const getFailure = <E, A>(self: Result.Result<E, A>): Option.Option<E> =>
+  find<E, A, E>(self, (result) =>
+    result._tag === "Failure"
+      ? Cause.failureOption(result.cause)
       : Option.none())
 
 /** @internal */
-export const getDefect = <D, E, A>(self: Result.Result<D, E, A>): Option.Option<Cause.Cause<D>> =>
-  find<D, E, A, Cause.Cause<D>>(self, (result) =>
-    result._tag === "Defect"
-      ? Option.some(result.cause)
-      : Option.none())
-
-/** @internal */
-export const getValue = <D, E, A>(self: Result.Result<D, E, A>): Option.Option<A> =>
-  find<D, E, A, A>(self, (result) =>
+export const getValue = <E, A>(self: Result.Result<E, A>): Option.Option<A> =>
+  find<E, A, A>(self, (result) =>
     result._tag === "Success"
       ? Option.some(result.value)
       : Option.none())
 
 /** @internal */
-export const getCause: <D, E, A>(self: Result.Result<D, E, A>) => Cause.Cause<D | E> = (self) => {
+export const getCause: <E, A>(self: Result.Result<E, A>) => Cause.Cause<E> = (self) => {
   switch (self._tag) {
     case "Waiting":
       return getCause(self.previous)
 
-    case "Defect":
+    case "Failure":
       return self.cause
-
-    case "Fail":
-      return Cause.fail(self.error)
 
     case "Initial":
     case "Success": {
@@ -372,24 +63,208 @@ export const getCause: <D, E, A>(self: Result.Result<D, E, A>) => Cause.Cause<D 
 }
 
 /** @internal */
-export const getExit: <D, E, A>(self: Result.Result<D, E, A>) => Exit.Exit<D, Either.Either<E, A>> = (self) => {
+export const getExit: <E, A>(self: Result.Result<E, A>) => Exit.Exit<E | Cause.NoSuchElementException, A> = (self) => {
   switch (self._tag) {
     case "Waiting":
       return getExit(self.previous)
 
-    case "Defect":
+    case "Success":
+      return Exit.succeed(self.value)
+
+    case "Failure":
       return Exit.failCause(self.cause)
 
-    case "Fail":
-      return Exit.succeed(Either.left(self.error))
-
-    case "Success":
-      return Exit.succeed(Either.right(self.value))
-
     case "Initial":
-      return Exit.failCause(Cause.empty)
+      return Exit.fail(Cause.NoSuchElementException("Result is in its initial state"))
   }
 }
+
+// -----------------------------------------------------------------------------
+// Constructors
+// -----------------------------------------------------------------------------
+
+/** @internal */
+const inspect = Symbol.for("nodejs.util.inspect.custom")
+
+/** @internal */
+const equals = (self: Result.Result<any, any>, that: unknown) => {
+  if (!isResult(that)) return false
+  if (self._tag === that._tag) return Equal.equals(self.i0, that.i0)
+  const exits = [getExit(self), getExit(that)] as const
+  return Equal.equals(...exits)
+}
+
+class Initial<E = never, A = never> implements Result.Initial<E, A> {
+  readonly _tag = "Initial"
+  readonly i0 = undefined as never
+  readonly i1: undefined
+  readonly i2: undefined;
+  [Hash.symbol]() {
+    return Hash.string(this._tag)
+  }
+  [Equal.symbol](this: this, that: Equal.Equal): boolean {
+    return equals(this, that)
+  }
+  toString() {
+    return "Initial"
+  }
+  toJSON() {
+    return { _tag: this._tag }
+  }
+  [inspect]() {
+    return this.toJSON()
+  }
+  pipe() {
+    return pipeArguments(this, arguments)
+  }
+}
+
+class Failure<E, A> implements Result.Failure<E, A> {
+  readonly _tag = "Failure"
+  readonly i1: undefined
+  readonly i2: undefined
+  constructor(readonly i0: Cause.Cause<E>) {}
+  get cause() {
+    return this.i0
+  }
+  [Hash.symbol]() {
+    return Hash.combine(Hash.string(this._tag))(Hash.hash(this.i0))
+  }
+  [Equal.symbol](this: this, that: Equal.Equal): boolean {
+    return equals(this, that)
+  }
+  toString() {
+    return `Failure(${this.i0})`
+  }
+  toJSON() {
+    return { _tag: this._tag, cause: this.i0 }
+  }
+  [inspect]() {
+    return this.toJSON()
+  }
+  pipe() {
+    return pipeArguments(this, arguments)
+  }
+}
+
+class Success<E, A> implements Result.Success<E, A> {
+  readonly _tag = "Success"
+  readonly i1: undefined
+  readonly i2: undefined
+  constructor(readonly i0: A) {}
+  get value() {
+    return this.i0
+  }
+  [Hash.symbol]() {
+    return Hash.combine(Hash.string(this._tag))(Hash.hash(this.i0))
+  }
+  [Equal.symbol](this: this, that: Equal.Equal): boolean {
+    return equals(this, that)
+  }
+  toString() {
+    return `Success(${this.i0})`
+  }
+  toJSON() {
+    return { _tag: this._tag, value: this.i0 }
+  }
+  [inspect]() {
+    return this.toJSON()
+  }
+  pipe() {
+    return pipeArguments(this, arguments)
+  }
+}
+
+class Waiting<E, A> implements Result.Waiting<Result.Result<E, A>> {
+  readonly _tag = "Waiting"
+  readonly i1: undefined
+  readonly i2: undefined
+  constructor(readonly i0: Result.Result<E, A>) {}
+  get previous() {
+    return this.i0
+  }
+  [Hash.symbol]() {
+    return Hash.hash(this.i0)
+  }
+  [Equal.symbol](this: this, that: Equal.Equal): boolean {
+    return equals(this, that)
+  }
+  toString() {
+    return `Waiting(${this.i0})`
+  }
+  toJSON() {
+    return { _tag: this._tag, previous: this.i0 }
+  }
+  [inspect]() {
+    return this.toJSON()
+  }
+  pipe() {
+    return pipeArguments(this, arguments)
+  }
+}
+
+/** @internal */
+export const empty = new Initial()
+
+/** @internal */
+export const initial = (): Result.Result<never, never> => empty
+
+/** @internal */
+export const success = <A>(value: A): Result.Result<never, A> => new Success(value)
+
+/** @internal */
+export const fail = <E>(failure: E): Result.Result<E, never> => failCause(Cause.fail(failure))
+
+/** @internal */
+export const failCause = <E>(cause: Cause.Cause<E>): Result.Result<E, never> => new Failure(cause)
+
+/** @internal */
+export const waiting = <E, A>(previous: Result.Result<E, A>): Result.Result<E, A> => new Waiting(previous)
+
+/** @internal */
+export const fromExit = <E, A>(
+  exit: Exit.Exit<E, A>
+): Result.Result<E, A> => {
+  if (Exit.isFailure(exit)) {
+    return failCause(exit.cause)
+  }
+  return success(exit.value)
+}
+
+// -----------------------------------------------------------------------------
+// Refinements
+// -----------------------------------------------------------------------------
+
+/** @internal */
+export const isResult = (u: unknown): u is Result.Result<unknown, unknown> =>
+  typeof u === "object" && u != null && Equal.isEqual(u) && "_tag" in u
+
+/** @internal */
+export const isInitial = <E, A>(self: Result.Result<E, A>): self is Result.Initial<E, A> => self._tag === "Initial"
+
+/** @internal */
+export const isWaiting = <E, A>(
+  self: Result.Result<E, A>
+): self is Result.Waiting<Result.Result<E, A>> => self._tag === "Waiting"
+
+/** @internal */
+export const isFailure = <E, A>(self: Result.Result<E, A>): self is Result.Failure<E, A> => self._tag === "Failure"
+
+/** @internal */
+export const isSuccess = <E, A>(self: Result.Result<E, A>): self is Result.Success<E, A> => self._tag === "Success"
+
+/** @internal */
+export const isLoading = <E, A>(
+  self: Result.Result<E, A>
+): self is Result.Waiting<Result.Initial<E, A>> => isWaiting(self) && isInitial(self.previous)
+
+/** @internal */
+export const isRefreshing = <E, A>(self: Result.Result<E, A>): self is Result.Waiting<Result.Success<E, A>> =>
+  isWaiting(self) && isSuccess(self.previous)
+
+/** @internal */
+export const isRetrying = <E, A>(self: Result.Result<E, A>): self is Result.Waiting<Result.Failure<E, A>> =>
+  isWaiting(self) && isFailure(self.previous)
 
 // -----------------------------------------------------------------------------
 // Finding
@@ -397,14 +272,14 @@ export const getExit: <D, E, A>(self: Result.Result<D, E, A>) => Exit.Exit<D, Ei
 
 /** @internal */
 export const find: {
-  <D, E, A, Z>(
-    pf: (result: Result.Result<D, E, A>) => Option.Option<Z>
-  ): (result: Result.Result<D, E, A>) => Option.Option<Z>
-  <D, E, A, Z>(
-    self: Result.Result<D, E, A>,
-    pf: (cause: Result.Result<D, E, A>) => Option.Option<Z>
+  <E, A, Z>(
+    pf: (result: Result.Result<E, A>) => Option.Option<Z>
+  ): (result: Result.Result<E, A>) => Option.Option<Z>
+  <E, A, Z>(
+    self: Result.Result<E, A>,
+    pf: (cause: Result.Result<E, A>) => Option.Option<Z>
   ): Option.Option<Z>
-} = dual(2, <D, E, A, Z>(self: Result.Result<D, E, A>, pf: (cause: Result.Result<D, E, A>) => Option.Option<Z>) => {
+} = dual(2, <E, A, Z>(self: Result.Result<E, A>, pf: (cause: Result.Result<E, A>) => Option.Option<Z>) => {
   const option = pf(self)
   switch (option._tag) {
     case "None": {
@@ -425,14 +300,14 @@ export const find: {
 
 /** @internal */
 export const as = dual<
-  <A2>(value: A2) => <D, E, A>(self: Result.Result<D, E, A>) => Result.Result<D, E, A2>,
-  <D, E, A, A2>(self: Result.Result<D, E, A>, value: A2) => Result.Result<D, E, A2>
->(2, (self, error) => map(self, () => error))
+  <A2>(value: A2) => <E, A>(self: Result.Result<E, A>) => Result.Result<E, A2>,
+  <E, A, A2>(self: Result.Result<E, A>, value: A2) => Result.Result<E, A2>
+>(2, (self, value) => map(self, () => value))
 
 /** @internal */
 export const map = dual<
-  <A, A2>(f: (a: A) => A2) => <D, E>(self: Result.Result<D, E, A>) => Result.Result<D, E, A2>,
-  <D, E, A, A2>(self: Result.Result<D, E, A>, f: (a: A) => A2) => Result.Result<D, E, A2>
+  <A, A2>(f: (a: A) => A2) => <E>(self: Result.Result<E, A>) => Result.Result<E, A2>,
+  <E, A, A2>(self: Result.Result<E, A>, f: (a: A) => A2) => Result.Result<E, A2>
 >(2, (self, f) => flatMap(self, (e) => success(f(e))))
 
 // -----------------------------------------------------------------------------
@@ -441,34 +316,34 @@ export const map = dual<
 
 /** @internal */
 export const flatMap: {
-  <A, D2, E2, A2>(
-    f: (a: A) => Result.Result<D2, E2, A2>
-  ): <D, E>(self: Result.Result<D, E, A>) => Result.Result<D2 | D, E2 | E, A2>
-  <D, E, A, D2, E2, A2>(
-    self: Result.Result<D, E, A>,
-    f: (a: A) => Result.Result<D2, E2, A2>
-  ): Result.Result<D | D2, E | E2, A2>
+  <A, E2, A2>(
+    f: (a: A) => Result.Result<E2, A2>
+  ): <E>(self: Result.Result<E, A>) => Result.Result<E2 | E, A2>
+  <E, A, E2, A2>(
+    self: Result.Result<E, A>,
+    f: (a: A) => Result.Result<E2, A2>
+  ): Result.Result<E | E2, A2>
 } = dual<
-  <A, D2, E2, A2>(
-    f: (a: A) => Result.Result<D2, E2, A2>
-  ) => <D, E>(self: Result.Result<D, E, A>) => Result.Result<D | D2, E | E2, A2>,
-  <D, E, A, D2, E2, A2>(
-    self: Result.Result<D, E, A>,
-    f: (a: A) => Result.Result<D2, E2, A2>
-  ) => Result.Result<D | D2, E | E2, A2>
+  <A, E2, A2>(
+    f: (a: A) => Result.Result<E2, A2>
+  ) => <E>(self: Result.Result<E, A>) => Result.Result<E | E2, A2>,
+  <E, A, E2, A2>(
+    self: Result.Result<E, A>,
+    f: (a: A) => Result.Result<E2, A2>
+  ) => Result.Result<E | E2, A2>
 >(2, (self, f) =>
   match(self, {
-    onInitial: init,
-    onFail: (error) => fail(error),
+    onInitial: empty,
+    onFail: (error) => failCause(error),
     onSuccess: (a) => f(a) as any,
-    onWaiting: (previous) => waiting(flatMap(previous, f)),
-    onDefect: (cause) => defect(cause)
+    // I wonder when this becomes a bug
+    onWaiting: (previous) => previous._tag === "Waiting" ? flatMap(previous, f) : waiting(flatMap(previous, f))
   }))
 
 /** @internal */
-export const flatten = <D, E, D1, E1, A>(
-  self: Result.Result<D, E, Result.Result<D1, E1, A>>
-): Result.Result<D | D1, E | E1, A> => flatMap(self, identity)
+export const flatten = <E, E1, A>(
+  self: Result.Result<E, Result.Result<E1, A>>
+): Result.Result<E | E1, A> => flatMap(self, identity)
 
 // -----------------------------------------------------------------------------
 // Reducing
@@ -476,32 +351,27 @@ export const flatten = <D, E, D1, E1, A>(
 
 /** @internal */
 export const match = dual<
-  <Z, D, E, A>(
+  <Z, E, A>(
     options: {
       readonly onInitial: Z
-      readonly onFail: (error: E) => Z
-      readonly onDefect: (defect: Cause.Cause<D>) => Z
-      readonly onWaiting: (previous: Result.Result<D, E, A>) => Z
+      readonly onFail: (error: Cause.Cause<E>) => Z
+      readonly onWaiting: (previous: Result.Result<E, A>) => Z
       readonly onSuccess: (value: A) => Z
     }
-  ) => (self: Result.Result<D, E, A>) => Z,
-  <Z, D, E, A>(
-    self: Result.Result<D, E, A>,
+  ) => (self: Result.Result<E, A>) => Z,
+  <Z, E, A>(
+    self: Result.Result<E, A>,
     options: {
       readonly onInitial: Z
-      readonly onFail: (error: E) => Z
-      readonly onDefect: (defect: Cause.Cause<D>) => Z
-      readonly onWaiting: (previous: Result.Result<D, E, A>) => Z
+      readonly onFail: (error: Cause.Cause<E>) => Z
+      readonly onWaiting: (previous: Result.Result<E, A>) => Z
       readonly onSuccess: (value: A) => Z
     }
   ) => Z
->(2, (self, { onDefect, onFail, onInitial, onSuccess, onWaiting }) => {
+>(2, (self, { onFail, onInitial, onSuccess, onWaiting }) => {
   switch (self._tag) {
-    case "Fail":
-      return onFail(self.error)
-
-    case "Defect":
-      return onDefect(self.cause)
+    case "Failure":
+      return onFail(self.cause)
 
     case "Waiting":
       return onWaiting(self.previous)

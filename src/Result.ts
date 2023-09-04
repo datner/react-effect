@@ -1,12 +1,14 @@
-import * as Either from "@effect/data/Either"
-import type * as HashMap from "@effect/data/HashMap"
+import type * as Data from "@effect/data/Data"
 import type * as Option from "@effect/data/Option"
+import type { Pipeable } from "@effect/data/Pipeable"
+import type * as Unify from "@effect/data/Unify"
 import type * as Cause from "@effect/io/Cause"
+import type * as Effect from "@effect/io/Effect"
 import type * as Exit from "@effect/io/Exit"
 import * as internal from "react-effect/internal/result"
 
 // -------------------------------------------------------------------------------------
-// model
+// models
 // -------------------------------------------------------------------------------------
 
 /**
@@ -15,18 +17,11 @@ import * as internal from "react-effect/internal/result"
  * @since 1.0.0
  * @category models
  */
-export type Result<D, E, A> =
-  | Initial
-  | Waiting<CurrentResult<D, E, A>>
-  | Defect<D>
-  | Fail<E>
-  | Success<A>
-
-export type CurrentResult<D, E, A> =
-  | Initial
-  | Defect<D>
-  | Fail<E>
-  | Success<A>
+export type Result<E, A> =
+  | Initial<E, A>
+  | Waiting<Result<E, A>>
+  | Success<E, A>
+  | Failure<E, A>
 
 /**
  * @since 1.0.0
@@ -40,56 +35,42 @@ export const TypeId: unique symbol = internal.TypeId
  */
 export type TypeId = typeof TypeId
 
-// ---------------------------------------------
-// models
-// ---------------------------------------------
-
 /**
  * @since 1.0.0
  */
 export declare namespace Result {
   /**
-   * @since 1.0.0
    * @category models
+   * @since 1.0.0
    */
-  export interface Variance<D, E, A> {
-    readonly [TypeId]: {
-      readonly _D: (_: never) => D
-      readonly _E: (_: never) => E
-      readonly _A: (_: never) => A
-    }
+  export interface Unify<A extends { [Unify.typeSymbol]?: any }> extends Effect.EffectUnify<A> {
+    Result?: () => A[Unify.typeSymbol] extends Result<infer E0, infer A0> | infer _ ? Result<E0, A0> : never
+  }
+
+  export interface Variance<E, A> {
+    _E: () => E
+    _A: () => A
+  }
+
+  /**
+   * @category models
+   * @since 1.0.0
+   */
+  export interface UnifyBlackList extends Effect.EffectUnifyBlacklist {
+    Effect?: true
   }
 
   /**
    * @since 1.0.0
    * @category type-level
    */
-  export type Defect<T extends Result<any, any, any>> = [T] extends [Result<infer _D, infer _E, infer _A>] ? _D : never
+  export type Error<T extends Result<any, any>> = [T] extends [Result<infer _E, infer _A>] ? _E : never
+
   /**
    * @since 1.0.0
    * @category type-level
    */
-  export type Error<T extends Result<any, any, any>> = [T] extends [Result<infer _D, infer _E, infer _A>] ? _E : never
-  /**
-   * @since 1.0.0
-   * @category type-level
-   */
-  export type Success<T extends Result<any, any, any>> = [T] extends [Result<infer _D, infer _E, infer _A>] ? _A
-    : never
-}
-
-/**
- * @category model
- * @since 1.0.0
- */
-export interface Annotations extends HashMap.HashMap<string | symbol, unknown> {}
-
-/**
- * @since 1.0.0
- * @category models
- */
-export interface Annotated {
-  readonly annotations: Annotations
+  export type Success<T extends Result<any, any>> = [T] extends [Result<infer _E, infer _A>] ? _A : never
 }
 
 /**
@@ -99,21 +80,15 @@ export interface Annotated {
  * @category models
  * @since 1.0.0
  */
-export interface Fail<E> extends internal.Base<never, E, never> {
-  readonly _tag: "Fail"
-  get error(): E
-}
-
-/**
- * The `Defect` result represents a `Result` which failed with an unexpected error of
- * type `D`.
- *
- * @since 1.0.0
- * @category models
- */
-export interface Defect<D> extends internal.Base<D, never, never> {
-  readonly _tag: "Defect"
-  get cause(): Cause.Cause<D>
+export interface Failure<E, A> extends Data.Case, Pipeable {
+  readonly _tag: "Failure"
+  readonly cause: Cause.Cause<E>
+  [TypeId]?: Result.Variance<E, A>
+  [Unify.typeSymbol]?: unknown
+  [Unify.unifySymbol]?: Result.Unify<this>
+  [Unify.blacklistSymbol]?: Result.UnifyBlackList
+  /** @internal */
+  readonly i0: Cause.Cause<E>
 }
 
 /**
@@ -123,9 +98,15 @@ export interface Defect<D> extends internal.Base<D, never, never> {
  * @since 1.0.0
  * @category models
  */
-export interface Success<A> extends internal.Base<never, never, A> {
+export interface Success<E, A> extends Data.Case, Pipeable {
   readonly _tag: "Success"
-  get value(): A
+  readonly value: A
+  [TypeId]?: Result.Variance<E, A>
+  [Unify.typeSymbol]?: unknown
+  [Unify.unifySymbol]?: Result.Unify<this>
+  [Unify.blacklistSymbol]?: Result.UnifyBlackList
+  /** @internal */
+  readonly i0: A
 }
 
 /**
@@ -134,18 +115,16 @@ export interface Success<A> extends internal.Base<never, never, A> {
  * @since 1.0.0
  * @category models
  */
-export interface Waiting<Previous extends CurrentResult<any, any, any>> extends
-  internal.Base<
-    Result.Defect<Previous>,
-    Result.Error<Previous>,
-    Result.Success<Previous>
-  >
-{
+export interface Waiting<Previous extends Result<any, any>> extends Data.Case, Pipeable {
   readonly _tag: "Waiting"
-  get previous(): Previous
+  readonly previous: Previous
+  [TypeId]?: Result.Variance<Result.Error<Previous>, Result.Success<Previous>>
+  [Unify.typeSymbol]?: unknown
+  [Unify.unifySymbol]?: Result.Unify<this>
+  [Unify.blacklistSymbol]?: Result.UnifyBlackList
+  /** @internal */
+  readonly i0: Previous
 }
-
-Either.left
 
 /**
  * The `Initial` result represents an empty `Result`
@@ -153,8 +132,14 @@ Either.left
  * @since 1.0.0
  * @category models
  */
-export interface Initial extends internal.Base<never, never, never> {
+export interface Initial<E = never, A = never> extends Data.Case, Pipeable {
   readonly _tag: "Initial"
+  [TypeId]?: Result.Variance<E, A>
+  [Unify.typeSymbol]?: unknown
+  [Unify.unifySymbol]?: Result.Unify<this>
+  [Unify.blacklistSymbol]?: Result.UnifyBlackList
+  /** @internal */
+  readonly i0: never
 }
 
 // -----------------------------------------------------------------------------
@@ -171,7 +156,7 @@ export interface Initial extends internal.Base<never, never, never> {
  * @since 1.0.0
  * @category constructors
  */
-export const init: Result<never, never, never> = internal.init
+export const initial: () => Result<never, never> = internal.initial
 
 /**
  * Constructs a new `Result` that 'remembers' the previous `Result`.
@@ -180,16 +165,7 @@ export const init: Result<never, never, never> = internal.init
  * @since 1.0.0
  * @category constructors
  */
-export const waiting: <D, E, A>(previous: Result<D, E, A>) => Result<D, E, A> = internal.waiting
-
-/**
- * Constructs a new `Result` from a specified cause.
- * `Defect` represents that the effect ended for an unexpected reason
- *
- * @since 1.0.0
- * @category constructors
- */
-export const defect: <D>(previous: Cause.Cause<D>) => Result<D, never, never> = internal.defect
+export const waiting: <E, A>(previous: Result<E, A>) => Result<E, A> = internal.waiting
 
 /**
  * Constructs a new `Result` from a a specified error.
@@ -200,7 +176,18 @@ export const defect: <D>(previous: Cause.Cause<D>) => Result<D, never, never> = 
  * @since 1.0.0
  * @category constructors
  */
-export const fail: <E>(error: E) => Result<never, E, never> = internal.fail
+export const fail: <E>(failure: E) => Result<E, never> = internal.fail
+
+/**
+ * Constructs a new `Result` from a a specified Cause.
+ * `Fail` represents that the effect ended with a known error.
+ * This is useful to handle both valid and invalid results in a determinate fashion,
+ * for example to catch auth errors and communicate to the user that they need to log in
+ *
+ * @since 1.0.0
+ * @category constructors
+ */
+export const failCause: <E>(cause: Cause.Cause<E>) => Result<E, never> = internal.failCause
 
 /**
  * Constructs a new `Result` from a specified value
@@ -209,31 +196,27 @@ export const fail: <E>(error: E) => Result<never, E, never> = internal.fail
  * @since 1.0.0
  * @category constructors
  */
-export const success: <A>(value: A) => Result<never, never, A> = internal.success
+export const success: <A>(value: A) => Result<never, A> = internal.success
 
 /**
- * Constructs a new `Result` from a a specified exit either.
- * This is useful for interop with `Effect.either` and `Effect.runCallback`.
- * This function assumes that a failed exit is always a defect.
+ * Constructs a new `Result` from a a specified exit
  *
  * @since 1.0.0
  * @category constructors
  */
-export const fromExitEither: <D, E, A>(
-  exit: Exit.Exit<D, Either.Either<E, A>>
-) => Result<D, E, A> = internal.fromExitEither
+export const fromExit: <E, A>(exit: Exit.Exit<E, A>) => Result<E, A> = internal.fromExit
 
 // -----------------------------------------------------------------------------
 // Refinements
 // -----------------------------------------------------------------------------
-Either.isLeft
+
 /**
  * Tests if a value is a `Result`.
  *
  * @since 1.0.0
  * @category refinements
  */
-export const isResult: (u: unknown) => u is Result<unknown, unknown, unknown> = internal.isResult
+export const isResult: (u: unknown) => u is Result<unknown, unknown> = internal.isResult
 
 /**
  * Determine if a `Result` is an `Initial`.
@@ -241,15 +224,15 @@ export const isResult: (u: unknown) => u is Result<unknown, unknown, unknown> = 
  * @since 1.0.0
  * @category refinements
  */
-export const isInitial: <D, E, A>(self: Result<D, E, A>) => self is Initial = internal.isInitial
+export const isInitial: <E, A>(self: Result<E, A>) => self is Initial<E, A> = internal.isInitial
 
 /**
- * Determine if a `Result` is a `Fail`.
+ * Determine if a `Result` is a `Failure`.
  *
  * @since 1.0.0
  * @category refinements
  */
-export const isFail: <D, E, A>(u: Result<D, E, A>) => boolean = internal.isFail
+export const isFailure: <E, A>(self: Result<E, A>) => self is Failure<E, A> = internal.isFailure
 
 /**
  * Determine if a `Result` is a `Success`.
@@ -257,24 +240,16 @@ export const isFail: <D, E, A>(u: Result<D, E, A>) => boolean = internal.isFail
  * @since 1.0.0
  * @category refinements
  */
-export const isSuccess: <D, E, A>(self: Result<D, E, A>) => self is Success<A> = internal.isSuccess
+export const isSuccess: <E, A>(self: Result<E, A>) => self is Success<E, A> = internal.isSuccess
 
 /**
- * Determine if a `Result` is a `Defect`.
+ * Determine if a `Result` is a `Failure`.
  *
  * @since 1.0.0
  * @category refinements
+ * @alias isFailure
  */
-export const isDefect: <D, E, A>(self: Result<D, E, A>) => self is Defect<D> = internal.isDefect
-
-/**
- * Determine if a `Result` is a `Defect` or `Fail`.
- * This is helpful to represent a blanket "didn't work"
- *
- * @since 1.0.0
- * @category refinements
- */
-export const isError: <D, E, A>(self: Result<D, E, A>) => self is Defect<D> | Fail<E> = internal.isError
+export const isError: <E, A>(self: Result<E, A>) => self is Failure<E, A> = internal.isFailure
 
 /**
  * Determine if a `Result` is a `Waiting`
@@ -282,7 +257,7 @@ export const isError: <D, E, A>(self: Result<D, E, A>) => self is Defect<D> | Fa
  * @since 1.0.0
  * @category refinements
  */
-export const isWaiting: <D, E, A>(self: Result<D, E, A>) => self is Waiting<CurrentResult<D, E, A>> = internal.isWaiting
+export const isWaiting: <E, A>(self: Result<E, A>) => self is Waiting<Result<E, A>> = internal.isWaiting
 
 /**
  * Determine if a `Result` is a `Waiting` on the first result
@@ -290,7 +265,7 @@ export const isWaiting: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Curr
  * @since 1.0.0
  * @category refinements
  */
-export const isLoading: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Initial> = internal.isLoading
+export const isLoading: <E, A>(self: Result<E, A>) => self is Waiting<Initial<E, A>> = internal.isLoading
 
 /**
  * Determine if a `Result` is a `Waiting` with a previous `Success`
@@ -298,7 +273,7 @@ export const isLoading: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Init
  * @since 1.0.0
  * @category refinements
  */
-export const isRefreshing: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Success<A>> = internal.isRefreshing
+export const isRefreshing: <E, A>(self: Result<E, A>) => self is Waiting<Success<E, A>> = internal.isRefreshing
 
 /**
  * Determine if a `Result` is a `Waiting` with a previous `Fail`
@@ -306,7 +281,7 @@ export const isRefreshing: <D, E, A>(self: Result<D, E, A>) => self is Waiting<S
  * @since 1.0.0
  * @category refinements
  */
-export const isRetrying: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Fail<E>> = internal.isRetrying
+export const isRetrying: <E, A>(self: Result<E, A>) => self is Waiting<Failure<E, A>> = internal.isRetrying
 
 // -----------------------------------------------------------------------------
 // Getters
@@ -318,15 +293,7 @@ export const isRetrying: <D, E, A>(self: Result<D, E, A>) => self is Waiting<Fai
  * @since 1.0.0
  * @category getters
  */
-export const getFailure: <D, E, A>(u: Result<D, E, A>) => Option.Option<E> = internal.getFailure
-
-/**
- * Safely lookup the defect in a `Result`
- *
- * @since 1.0.0
- * @category getters
- */
-export const getDefect: <D, E, A>(u: Result<D, E, A>) => Option.Option<Cause.Cause<D>> = internal.getDefect
+export const getFailure: <E, A>(self: Result<E, A>) => Option.Option<E> = internal.getFailure
 
 /**
  * Safely lookup the value in a `Result`
@@ -334,7 +301,7 @@ export const getDefect: <D, E, A>(u: Result<D, E, A>) => Option.Option<Cause.Cau
  * @since 1.0.0
  * @category getters
  */
-export const getValue: <D, E, A>(u: Result<D, E, A>) => Option.Option<A> = internal.getValue
+export const getValue: <E, A>(self: Result<E, A>) => Option.Option<A> = internal.getValue
 
 /**
  * Gets the equivalent `Exit` for a `Result`
@@ -343,7 +310,7 @@ export const getValue: <D, E, A>(u: Result<D, E, A>) => Option.Option<A> = inter
  * @since 1.0.0
  * @category getters
  */
-export const getExit: <D, E, A>(u: Result<D, E, A>) => Exit.Exit<D, Either.Either<E, A>> = internal.getExit
+export const getExit: <E, A>(self: Result<E, A>) => Exit.Exit<E | Cause.NoSuchElementException, A> = internal.getExit
 
 // -----------------------------------------------------------------------------
 // Mapping
@@ -356,8 +323,8 @@ export const getExit: <D, E, A>(u: Result<D, E, A>) => Exit.Exit<D, Either.Eithe
  * @category mapping
  */
 export const as: {
-  <A2>(value: A2): <D, E, A>(self: Result<D, E, A>) => Result<D, E, A2>
-  <D, E, A, A2>(self: Result<D, E, A>, value: A2): Result<D, E, A2>
+  <A2>(value: A2): <E, A>(self: Result<E, A>) => Result<E, A2>
+  <E, A, A2>(self: Result<E, A>, value: A2): Result<E, A2>
 } = internal.as
 
 /**
@@ -367,8 +334,8 @@ export const as: {
  * @category mapping
  */
 export const map: {
-  <A, A2>(f: (a: A) => A2): <D, E>(self: Result<D, E, A>) => Result<D, E, A2>
-  <D, E, A, A2>(self: Result<D, E, A>, f: (a: A) => A2): Result<D, E, A2>
+  <A, A2>(f: (a: A) => A2): <E>(self: Result<E, A>) => Result<E, A2>
+  <E, A, A2>(self: Result<E, A>, f: (a: A) => A2): Result<E, A2>
 } = internal.map
 
 // -----------------------------------------------------------------------------
@@ -382,19 +349,12 @@ export const map: {
  * @category tranforming
  */
 export const flatMap: {
-  <A, D2, E2, A2>(
-    f: (a: A) => Result<D2, E2, A2>
-  ): <D, E>(self: Result<D, E, A>) => Result<D | D2, E | E2, A2>
-  <D, E, A, D2, E2, A2>(
-    self: Result<D, E, A>,
-    f: (a: A) => Result<D2, E2, A2>
-  ): Result<D | D2, E | E2, A2>
+  <A, E2, A2>(f: (a: A) => Result<E2, A2>): <E>(self: Result<E, A>) => Result<E2 | E, A2>
+  <E, A, E2, A2>(self: Result<E, A>, f: (a: A) => Result<E2, A2>): Result<E | E2, A2>
 } = internal.flatMap
 
 /**
  * @since 1.0.0
  * @category tranforming
  */
-export const flatten: <D, E, D1, E1, A>(
-  self: Result<D, E, Result<D1, E1, A>>
-) => Result<D | D1, E | E1, A> = internal.flatten
+export const flatten: <E, E1, A>(self: Result<E, Result<E1, A>>) => Result<E | E1, A> = internal.flatten
