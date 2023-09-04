@@ -1,7 +1,6 @@
 import * as Effect from "@effect/io/Effect"
 import * as Fiber from "@effect/io/Fiber"
 import * as Runtime from "@effect/io/Runtime"
-import type * as Schedule from "@effect/io/Schedule"
 import * as Stream from "@effect/stream/Stream"
 import { useContext, useRef, useState } from "react"
 import type { ResultBag } from "react-effect/hooks/useResultBag"
