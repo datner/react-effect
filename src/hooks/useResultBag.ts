@@ -7,13 +7,13 @@ import type { MutableRefObject } from "react"
 import { useMemo, useRef } from "react"
 import * as Result from "react-effect/Result"
 
-export interface ResultBag<D, E, A> {
-  readonly result: Result.Result<D, E, A>
+export interface ResultBag<E, A> {
+  readonly result: Result.Result<E, A>
   readonly dataUpdatedAt: Option.Option<Date>
   readonly errorUpdatedAt: Option.Option<Date>
   readonly errorRunningCount: number
   readonly failureCount: number
-  readonly failureCause: Cause.Cause<D | E>
+  readonly failureCause: Cause.Cause<E>
   readonly isError: boolean
   readonly isRefreshing: boolean
   readonly isRetrying: boolean
@@ -36,7 +36,7 @@ export interface TrackedProperties {
   runningErrorCount: number
   invocationCount: number
   interruptCount: number
-  currentStatus: Result.Result<any, any, any>["_tag"]
+  currentStatus: Result.Result<any, any>["_tag"]
   failureCause: Cause.Cause<unknown>
 }
 
@@ -60,10 +60,10 @@ const optionDateGreaterThan = pipe(
   Order.greaterThan
 )
 
-export const updateNext = <D, E, A>(
-  next: Result.Result<D, E, A>,
+export const updateNext = <E, A>(
+  next: Result.Result<E, A>,
   ref: MutableRefObject<TrackedProperties>
-): Result.Result<D, E, A> => {
+): Result.Result<E, A> => {
   switch (next._tag) {
     case "Initial": {
       break
@@ -71,17 +71,20 @@ export const updateNext = <D, E, A>(
     case "Waiting": {
       break
     }
-    case "Defect": {
-      ref.current.currentDefectCount++
-      ref.current.currentErrorCount++
-      ref.current.runningErrorCount++
-      break
-    }
-    case "Fail": {
-      ref.current.currentFailureCount++
-      ref.current.currentErrorCount++
-      ref.current.runningErrorCount++
-      ref.current.errorUpdatedAt = Option.some(new Date())
+    case "Failure": {
+      if (Cause.isFailure(next.cause)) {
+        ref.current.currentFailureCount++
+        ref.current.currentErrorCount++
+        ref.current.runningErrorCount++
+        ref.current.errorUpdatedAt = Option.some(new Date())
+        break
+      }
+      if (!Cause.isInterruptedOnly(next.cause)) {
+        ref.current.currentDefectCount++
+        ref.current.currentErrorCount++
+        ref.current.runningErrorCount++
+      }
+
       break
     }
     case "Success": {
@@ -94,10 +97,10 @@ export const updateNext = <D, E, A>(
   return next
 }
 
-export const useResultBag = <D, E, A>(result: Result.Result<D, E, A>) => {
+export const useResultBag = <E, A>(result: Result.Result<E, A>) => {
   const trackedPropsRef = useRef<TrackedProperties>(initial)
 
-  const resultBag = useMemo((): ResultBag<D, E, A> => ({
+  const resultBag = useMemo((): ResultBag<E, A> => ({
     result,
     get isLoading() {
       return Result.isLoading(result)
@@ -131,7 +134,7 @@ export const useResultBag = <D, E, A>(result: Result.Result<D, E, A>) => {
       return trackedPropsRef.current.currentFailureCount
     },
     get failureCause() {
-      return trackedPropsRef.current.failureCause as Cause.Cause<D | E>
+      return trackedPropsRef.current.failureCause as Cause.Cause<E>
     },
     get errorRunningCount() {
       return trackedPropsRef.current.runningErrorCount
