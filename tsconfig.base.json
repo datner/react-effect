@@ -39,13 +39,13 @@
     "incremental": true,
     "removeComments": false,
     "paths": {
-      "react-effect/*": [
+      "effect-react/*": [
         "./src/*"
       ],
-      "react-effect/hooks/*": [
+      "effect-react/hooks/*": [
         "./src/hooks/*"
       ],
-      "react-effect/test/utils/*": [
+      "effect-react/test/utils/*": [
         "./test/utils/*"
       ]
     },

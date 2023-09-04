@@ -3,9 +3,9 @@ import * as N from "@effect/data/Number"
 import * as Option from "@effect/data/Option"
 import * as Order from "@effect/data/Order"
 import * as Cause from "@effect/io/Cause"
+import * as Result from "effect-react/Result"
 import type { MutableRefObject } from "react"
 import { useMemo, useRef } from "react"
-import * as Result from "react-effect/Result"
 
 export interface ResultBag<E, A> {
   readonly result: Result.Result<E, A>

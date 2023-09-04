@@ -4,8 +4,8 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "react-effect": ["./build/esm/index.js"],
-      "react-effect/*": ["./build/esm/*"]
+      "effect-react": ["./build/esm/index.js"],
+      "effect-react/*": ["./build/esm/*"]
     }
   },
   "include": ["./build/esm/**/*.js"]

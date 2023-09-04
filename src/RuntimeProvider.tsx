@@ -5,12 +5,12 @@ import * as Layer from "@effect/io/Layer"
 import type * as Runtime from "@effect/io/Runtime"
 import * as Scope from "@effect/io/Scope"
 import { createContext } from "react"
-import type { UseResult } from "react-effect/hooks/useResult"
-import { makeUseResult } from "react-effect/hooks/useResult"
-import type { UseResultCallback } from "react-effect/hooks/useResultCallback"
-import { makeUseResultCallback } from "react-effect/hooks/useResultCallback"
+import type { UseResult } from "effect-react/hooks/useResult"
+import { makeUseResult } from "effect-react/hooks/useResult"
+import type { UseResultCallback } from "effect-react/hooks/useResultCallback"
+import { makeUseResultCallback } from "effect-react/hooks/useResultCallback"
 
-export { RuntimeContext } from "react-effect/internal/runtimeContext"
+export { RuntimeContext } from "effect-react/internal/runtimeContext"
 
 export interface ReactEffectBag<R> {
   readonly RuntimeContext: React.Context<Runtime.Runtime<R>>

@@ -16,8 +16,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "react-effect/test": path.join(__dirname, "test"),
-      "react-effect": path.join(__dirname, "src")
+      "effect-react/test": path.join(__dirname, "test"),
+      "effect-react": path.join(__dirname, "src")
     }
   }
 })

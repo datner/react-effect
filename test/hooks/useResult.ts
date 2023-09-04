@@ -3,8 +3,8 @@ import * as Effect from "@effect/io/Effect"
 import * as Layer from "@effect/io/Layer"
 import * as Stream from "@effect/stream/Stream"
 import { renderHook, waitFor } from "@testing-library/react"
-import * as Result from "react-effect/Result"
-import * as RuntimeProvider from "react-effect/RuntimeProvider"
+import * as Result from "effect-react/Result"
+import * as RuntimeProvider from "effect-react/RuntimeProvider"
 import { describe, expect, it } from "vitest"
 
 interface Foo {

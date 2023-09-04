@@ -7,7 +7,7 @@ import type { Pipeable } from "@effect/data/Pipeable"
 import { pipeArguments } from "@effect/data/Pipeable"
 import * as Cause from "@effect/io/Cause"
 import * as Exit from "@effect/io/Exit"
-import type * as Result from "react-effect/Result"
+import type * as Result from "effect-react/Result"
 
 // -----------------------------------------------------------------------------
 // Models
@@ -25,7 +25,7 @@ export interface Base<D, E, A> extends Data.Case, Pipeable {
 
 /** @internal */
 export const TypeId: Result.TypeId = Symbol.for(
-  "react-effect/result"
+  "effect-react/result"
 ) as Result.TypeId
 
 // -----------------------------------------------------------------------------

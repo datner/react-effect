@@ -2,11 +2,11 @@ import * as Effect from "@effect/io/Effect"
 import * as Fiber from "@effect/io/Fiber"
 import * as Runtime from "@effect/io/Runtime"
 import * as Stream from "@effect/stream/Stream"
+import type { ResultBag } from "effect-react/hooks/useResultBag"
+import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
+import type { RuntimeContext } from "effect-react/internal/runtimeContext"
+import * as Result from "effect-react/Result"
 import { useContext, useRef, useState } from "react"
-import type { ResultBag } from "react-effect/hooks/useResultBag"
-import { updateNext, useResultBag } from "react-effect/hooks/useResultBag"
-import type { RuntimeContext } from "react-effect/internal/runtimeContext"
-import * as Result from "react-effect/Result"
 
 export type UseResult<R> = <R0 extends R, E, A>(
   effect: Effect.Effect<R0, E, A>

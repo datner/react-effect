@@ -1,5 +1,5 @@
+import * as Result from "effect-react/Result"
 import * as fc from "fast-check"
-import * as Result from "react-effect/Result"
 
 export const init = fc.constant(Result.initial())
 export const failure = <E>(fail: fc.Arbitrary<E>) => fail.map(Result.fail)
