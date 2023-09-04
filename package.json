@@ -29,7 +29,7 @@
     "effect"
   ],
   "scripts": {
-    "version": "changeset version && pnpm install --no-frozen-lockfile && pnpm run docs-update",
+    "version": "changeset version && pnpm install --no-frozen-lockfile",
     "release": "pnpm run build && changeset publish",
     "clean": "rimraf build tsbuildinfo dist .cache",
     "build": "pnpm build-all && pnpm build-pack",
