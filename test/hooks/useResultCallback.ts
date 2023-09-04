@@ -14,7 +14,7 @@ const foo = Context.Tag<Foo>()
 const { useResultCallback } = RuntimeProvider.makeFromLayer(Layer.succeed(foo, { value: 1 }))
 
 describe("useResult", () => {
-  it.only("should do good", async () => {
+  it("should do good", async () => {
     const testEffect = (value: number) => Effect.succeed(value)
 
     const { result } = await waitFor(async () => renderHook(() => useResultCallback(testEffect)))
