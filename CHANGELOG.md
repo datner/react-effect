@@ -1,5 +1,11 @@
 # react-effect
 
+## 0.0.2
+
+### Patch Changes
+
+- [`92dac58`](https://github.com/datner/react-effect/commit/92dac5814e11c2526ab572a5c2100305e08b3dc4) - bug fixes
+
 ## 0.0.1
 
 ### Patch Changes
