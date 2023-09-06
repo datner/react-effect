@@ -6,10 +6,10 @@ import type { ResultBag } from "effect-react/hooks/useResultBag"
 import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
-import { useContext, useRef, useState } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 
 export type UseResult<R> = <R0 extends R, E, A>(
-  effect: Effect.Effect<R0, E, A>
+  stream: Stream.Stream<R0, E, A>
 ) => ResultBag<E, A>
 
 export const makeUseResult: <R>(
@@ -44,6 +44,13 @@ export const makeUseResult: <R>(
     }
 
     trackRef.current.currentStatus = result._tag
+
+    useEffect(() =>
+      () => {
+        if (fiberRef.current) {
+          Effect.runSync(Fiber.interruptFork(fiberRef.current))
+        }
+      }, [])
 
     return resultBag
   }
