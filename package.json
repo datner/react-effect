@@ -75,6 +75,7 @@
     "@effect/language-service": "^0.0.21",
     "@effect/stream": "^0.36.0",
     "@repo-tooling/eslint-plugin-dprint": "^0.0.4",
+    "@testing-library/dom": "9.3.1",
     "@testing-library/jest-dom": "^6.1.3",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.4.3",
