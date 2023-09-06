@@ -4,11 +4,11 @@ import * as Effect from "@effect/io/Effect"
 import * as Layer from "@effect/io/Layer"
 import type * as Runtime from "@effect/io/Runtime"
 import * as Scope from "@effect/io/Scope"
-import { createContext } from "react"
 import type { UseResult } from "effect-react/hooks/useResult"
 import { makeUseResult } from "effect-react/hooks/useResult"
 import type { UseResultCallback } from "effect-react/hooks/useResultCallback"
 import { makeUseResultCallback } from "effect-react/hooks/useResultCallback"
+import { createContext } from "react"
 
 export { RuntimeContext } from "effect-react/internal/runtimeContext"
 
@@ -31,6 +31,28 @@ export const makeFromLayer = <R, E>(
 
   const RuntimeContext = createContext(runtime)
 
+  return {
+    RuntimeContext,
+    useResultCallback: makeUseResultCallback(RuntimeContext),
+    useResult: makeUseResult(RuntimeContext)
+  }
+}
+
+export const makeFromRuntime = <R>(
+  runtime: Runtime.Runtime<R>
+): ReactEffectBag<R> => {
+  const RuntimeContext = createContext(runtime)
+
+  return {
+    RuntimeContext,
+    useResultCallback: makeUseResultCallback(RuntimeContext),
+    useResult: makeUseResult(RuntimeContext)
+  }
+}
+
+export const makeFromRuntimeContext = <R>(
+  RuntimeContext: React.Context<Runtime.Runtime<R>>
+): ReactEffectBag<R> => {
   return {
     RuntimeContext,
     useResultCallback: makeUseResultCallback(RuntimeContext),
