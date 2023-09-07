@@ -1,27 +1,22 @@
 import * as Effect from "@effect/io/Effect"
 import * as Fiber from "@effect/io/Fiber"
-import * as Queue from "@effect/io/Queue"
+import * as Ref from "@effect/io/Ref"
 import * as Runtime from "@effect/io/Runtime"
 import * as Stream from "@effect/stream/Stream"
 import type { ResultBag } from "effect-react/hooks/useResultBag"
 import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
-import { useCallback, useContext, useEffect, useRef, useState } from "react"
+import { useCallback, useContext, useEffect, useState } from "react"
 
-interface UseResultCallbackOptions {
-  /**
-   * Determines on-change behavior
-   * If this is true, effects and streams from callbacks will be run through
-   * on a best-effort basis instead of interrupting.
-   * Before using this option, check if you do not actually want to use `Effect.uninterruptible` instead.
-   */
-  uninterruptible?: true
+type FiberState<E> = { readonly _tag: "Idle" } | {
+  readonly _tag: "Running"
+  readonly fiber: Fiber.RuntimeFiber<E, void>
+  readonly interruptingRef: Ref.Ref<boolean>
 }
 
 export type UseResultCallback<R> = <Args extends Array<any>, R0 extends R, E, A>(
-  callback: (...args: Args) => Effect.Effect<R0, E, A>,
-  options?: UseResultCallbackOptions
+  callback: (...args: Args) => Effect.Effect<R0, E, A>
 ) => readonly [ResultBag<E, A>, (...args: Args) => void]
 
 export const makeUseResultCallback: <R>(
@@ -30,57 +25,55 @@ export const makeUseResultCallback: <R>(
   runtimeContext: RuntimeContext<R>
 ) =>
   <Args extends Array<any>, R0 extends R, E, A>(
-    f: (...args: Args) => Stream.Stream<R0, E, A>,
-    options?: UseResultCallbackOptions
+    f: (...args: Args) => Stream.Stream<R0, E, A>
   ) => {
-    const runtime = useContext(runtimeContext)
-    const fiberRef = useRef<Fiber.RuntimeFiber<E, void>>()
-    const queueRef = useRef<Queue.Queue<[(...args: Args) => Stream.Stream<R0, E, A>, Args]>>()
-    if (!queueRef.current) {
-      queueRef.current = Effect.runSync(Queue.unbounded())
-    }
     const [result, setResult] = useState<Result.Result<E, A>>(Result.initial())
     const [trackRef, resultBag] = useResultBag(result)
+    trackRef.current.currentStatus = result._tag
 
-    if (!fiberRef.current) {
-      fiberRef.current = Stream.fromQueue(queueRef.current).pipe(
-        Stream.tap(() =>
-          Effect.sync(() => {
-            setResult((prev) => updateNext(Result.waiting(prev), trackRef))
-          })
-        ),
-        Stream.flatMap(([f, args]) => f(...args), { switch: !options?.uninterruptible }),
-        Stream.tap((value) =>
-          Effect.sync(() => {
-            setResult(updateNext(Result.success(value), trackRef))
-          })
-        ),
-        Stream.tapErrorCause((cause) =>
-          Effect.sync(() => {
-            setResult(updateNext(Result.failCause(cause), trackRef))
-          })
-        ),
+    const [fiberState, setFiberState] = useState<FiberState<E>>({ _tag: "Idle" })
+    useEffect(() =>
+      () => {
+        if (fiberState._tag === "Running") {
+          Effect.runFork(Fiber.interruptFork(fiberState.fiber))
+        }
+      }, [])
+
+    const runtime = useContext(runtimeContext)
+    const run = useCallback((...args: Args) => {
+      if (fiberState._tag === "Running") {
+        Effect.runSync(Ref.set(fiberState.interruptingRef, true))
+        Effect.runFork(Fiber.interruptFork(fiberState.fiber))
+      }
+
+      trackRef.current.invocationCount++
+
+      const interruptingRef = Ref.unsafeMake(false)
+      const maybeSetResult = (result: Result.Result<E, A> | ((_: Result.Result<E, A>) => Result.Result<E, A>)) =>
+        Effect.flatMap(
+          Ref.get(interruptingRef),
+          (interrupting) =>
+            interrupting ? Effect.unit : Effect.sync(() => {
+              setResult(result)
+            })
+        )
+
+      const fiber = Effect.sync(() => {
+        setResult((prev) => updateNext(Result.waiting(prev), trackRef))
+      }).pipe(
+        Stream.flatMap(() => f(...args)),
+        Stream.tap((value) => maybeSetResult(updateNext(Result.success(value), trackRef))),
+        Stream.tapErrorCause((cause) => maybeSetResult(updateNext(Result.failCause(cause), trackRef))),
         Stream.runDrain,
         Runtime.runFork(runtime)
       )
-    }
 
-    trackRef.current.currentStatus = result._tag
-
-    const run = useCallback((...args: Args) => {
-      trackRef.current.invocationCount++
-      queueRef.current!.unsafeOffer([f, args])
-    }, [f])
-
-    useEffect(() =>
-      () => {
-        if (queueRef.current) {
-          Effect.runSync(Queue.shutdown(queueRef.current))
-        }
-        if (fiberRef.current) {
-          Effect.runSync(Fiber.interruptFork(fiberRef.current))
-        }
-      }, [])
+      setFiberState({
+        _tag: "Running",
+        fiber,
+        interruptingRef
+      })
+    }, [f, fiberState])
 
     return [resultBag, run] as const
   }
