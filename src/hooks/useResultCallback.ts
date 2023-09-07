@@ -9,8 +9,19 @@ import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
 import { useCallback, useContext, useEffect, useRef, useState } from "react"
 
+interface UseResultCallbackOptions {
+  /**
+   * Determines on-change behavior
+   * If this is true, effects and streams from callbacks will be run through
+   * on a best-effort basis instead of interrupting.
+   * Before using this option, check if you do not actually want to use `Effect.uninterruptible` instead.
+   */
+  uninterruptible?: true
+}
+
 export type UseResultCallback<R> = <Args extends Array<any>, R0 extends R, E, A>(
-  callback: (...args: Args) => Effect.Effect<R0, E, A>
+  callback: (...args: Args) => Effect.Effect<R0, E, A>,
+  options?: UseResultCallbackOptions
 ) => readonly [ResultBag<E, A>, (...args: Args) => void]
 
 export const makeUseResultCallback: <R>(
@@ -18,7 +29,10 @@ export const makeUseResultCallback: <R>(
 ) => UseResultCallback<R> = <R>(
   runtimeContext: RuntimeContext<R>
 ) =>
-  <Args extends Array<any>, R0 extends R, E, A>(f: (...args: Args) => Stream.Stream<R0, E, A>) => {
+  <Args extends Array<any>, R0 extends R, E, A>(
+    f: (...args: Args) => Stream.Stream<R0, E, A>,
+    options?: UseResultCallbackOptions
+  ) => {
     const runtime = useContext(runtimeContext)
     const fiberRef = useRef<Fiber.RuntimeFiber<E, void>>()
     const queueRef = useRef<Queue.Queue<[(...args: Args) => Stream.Stream<R0, E, A>, Args]>>()
@@ -35,7 +49,7 @@ export const makeUseResultCallback: <R>(
             setResult((prev) => updateNext(Result.waiting(prev), trackRef))
           })
         ),
-        Stream.flatMap(([f, args]) => f(...args)),
+        Stream.flatMap(([f, args]) => f(...args), { switch: !options?.uninterruptible }),
         Stream.tap((value) =>
           Effect.sync(() => {
             setResult(updateNext(Result.success(value), trackRef))
