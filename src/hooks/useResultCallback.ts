@@ -1,4 +1,5 @@
 import * as Effect from "@effect/io/Effect"
+import * as Exit from "@effect/io/Exit"
 import * as Fiber from "@effect/io/Fiber"
 import * as Ref from "@effect/io/Ref"
 import * as Runtime from "@effect/io/Runtime"
@@ -58,13 +59,18 @@ export const makeUseResultCallback: <R>(
             })
         )
 
-      const fiber = Effect.sync(() => {
+      const fiber = Stream.suspend(() => {
         setResult((prev) => updateNext(Result.waiting(prev), trackRef))
+        return f(...args)
       }).pipe(
-        Stream.flatMap(() => f(...args)),
         Stream.tap((value) => maybeSetResult(updateNext(Result.success(value), trackRef))),
         Stream.tapErrorCause((cause) => maybeSetResult(updateNext(Result.failCause(cause), trackRef))),
         Stream.runDrain,
+        Effect.onExit((exit) =>
+          Exit.isInterrupted(exit)
+            ? Effect.unit
+            : Effect.sync(() => setFiberState({ _tag: "Idle" }))
+        ),
         Runtime.runFork(runtime)
       )
 
