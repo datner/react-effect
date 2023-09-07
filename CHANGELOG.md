@@ -1,5 +1,11 @@
 # react-effect
 
+## 0.0.4
+
+### Patch Changes
+
+- [`5c48c4d`](https://github.com/datner/react-effect/commit/5c48c4decfab28fc0ae1a7e580758aabc640671c) Thanks [@datner](https://github.com/datner)! - update peer deps
+
 ## 0.0.3
 
 ### Patch Changes
