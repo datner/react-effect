@@ -8,7 +8,7 @@ import type { ResultBag } from "effect-react/hooks/useResultBag"
 import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
-import { useCallback, useContext, useEffect, useState } from "react"
+import { useCallback, useContext, useEffect, useRef, useState } from "react"
 
 type FiberState<E> = { readonly _tag: "Idle" } | {
   readonly _tag: "Running"
@@ -32,19 +32,20 @@ export const makeUseResultCallback: <R>(
     const [trackRef, resultBag] = useResultBag(result)
     trackRef.current.currentStatus = result._tag
 
-    const [fiberState, setFiberState] = useState<FiberState<E>>({ _tag: "Idle" })
+    const fiberState = useRef<FiberState<E>>({ _tag: "Idle" })
     useEffect(() =>
       () => {
-        if (fiberState._tag === "Running") {
-          Effect.runFork(Fiber.interruptFork(fiberState.fiber))
+        if (fiberState.current._tag === "Running") {
+          Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
         }
       }, [])
 
     const runtime = useContext(runtimeContext)
     const run = useCallback((...args: Args) => {
-      if (fiberState._tag === "Running") {
-        Effect.runSync(Ref.set(fiberState.interruptingRef, true))
-        Effect.runFork(Fiber.interruptFork(fiberState.fiber))
+      if (fiberState.current._tag === "Running") {
+        Effect.runSync(Ref.set(fiberState.current.interruptingRef, true))
+        Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
+        fiberState.current = { _tag: "Idle" }
       }
 
       trackRef.current.invocationCount++
@@ -69,17 +70,19 @@ export const makeUseResultCallback: <R>(
         Effect.onExit((exit) =>
           Exit.isInterrupted(exit)
             ? Effect.unit
-            : Effect.sync(() => setFiberState({ _tag: "Idle" }))
+            : Effect.sync(() => {
+              fiberState.current = { _tag: "Idle" }
+            })
         ),
         Runtime.runFork(runtime)
       )
 
-      setFiberState({
+      fiberState.current = {
         _tag: "Running",
         fiber,
         interruptingRef
-      })
-    }, [f, fiberState])
+      }
+    }, [f])
 
     return [resultBag, run] as const
   }
