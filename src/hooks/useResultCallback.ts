@@ -36,6 +36,7 @@ export const makeUseResultCallback: <R>(
     useEffect(() =>
       () => {
         if (fiberState.current._tag === "Running") {
+          Effect.runSync(Ref.set(fiberState.current.interruptingRef, true))
           Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
         }
       }, [])
@@ -45,7 +46,6 @@ export const makeUseResultCallback: <R>(
       if (fiberState.current._tag === "Running") {
         Effect.runSync(Ref.set(fiberState.current.interruptingRef, true))
         Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
-        fiberState.current = { _tag: "Idle" }
       }
 
       trackRef.current.invocationCount++
