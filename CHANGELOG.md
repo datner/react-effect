@@ -1,5 +1,11 @@
 # react-effect
 
+## 0.0.6
+
+### Patch Changes
+
+- [`07ca9a8`](https://github.com/datner/react-effect/commit/07ca9a8ea6da41c427b127a846217ca148bec41e) Thanks [@datner](https://github.com/datner)! - change to use-effect based impl
+
 ## 0.0.5
 
 ### Patch Changes
