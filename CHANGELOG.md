@@ -1,5 +1,13 @@
 # react-effect
 
+## 0.0.5
+
+### Patch Changes
+
+- [`f82837f`](https://github.com/datner/react-effect/commit/f82837f849bc99e61d2353871ccdc05445305db6) Thanks [@datner](https://github.com/datner)! - update dependencies
+
+- [#7](https://github.com/datner/react-effect/pull/7) [`5f531f4`](https://github.com/datner/react-effect/commit/5f531f41ef367d061efd5cf2a94d7c2e33bbf6b3) Thanks [@tim-smart](https://github.com/tim-smart)! - switch to explicit fiber tracking in useResultCallback
+
 ## 0.0.4
 
 ### Patch Changes
