@@ -54,7 +54,7 @@ export const makeUseResultCallback: <R>(
         interrupting = true
         Effect.runFork(Fiber.interruptFork(fiber))
       }
-    }, [currentArgs])
+    }, [f, currentArgs])
 
     const run = useCallback((...args: Args) => {
       setCurrentArgs(Option.some(args))
