@@ -63,6 +63,5 @@ export const makeUseResult: <R>(
       }
     }, [runtime, stream])
 
-    trackRef.current.currentStatus = result._tag
     return resultBag
   }

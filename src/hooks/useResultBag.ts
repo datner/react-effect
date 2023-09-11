@@ -40,7 +40,7 @@ export interface TrackedProperties {
   failureCause: Cause.Cause<unknown>
 }
 
-const initial: TrackedProperties = {
+export const initialTrackedProps = (): TrackedProperties => ({
   dataUpdatedAt: Option.none(),
   errorUpdatedAt: Option.none(),
   currentErrorCount: 0,
@@ -51,7 +51,7 @@ const initial: TrackedProperties = {
   interruptCount: 0,
   currentStatus: "Initial",
   failureCause: Cause.empty
-}
+})
 
 const optionDateGreaterThan = pipe(
   N.Order,
@@ -62,8 +62,18 @@ const optionDateGreaterThan = pipe(
 
 export const updateNext = <E, A>(
   next: Result.Result<E, A>,
-  ref: MutableRefObject<TrackedProperties>
+  tracked: MutableRefObject<TrackedProperties>
 ): Result.Result<E, A> => {
+  updateTrackedProps(next, tracked.current)
+  return next
+}
+
+export const updateTrackedProps = <E, A>(
+  next: Result.Result<E, A>,
+  tracked: TrackedProperties
+) => {
+  tracked.currentStatus = next._tag
+
   switch (next._tag) {
     case "Initial": {
       break
@@ -73,73 +83,80 @@ export const updateNext = <E, A>(
     }
     case "Failure": {
       if (Cause.isFailure(next.cause)) {
-        ref.current.currentFailureCount++
-        ref.current.currentErrorCount++
-        ref.current.runningErrorCount++
-        ref.current.errorUpdatedAt = Option.some(new Date())
+        tracked.currentFailureCount++
+        tracked.currentErrorCount++
+        tracked.runningErrorCount++
+        tracked.errorUpdatedAt = Option.some(new Date())
         break
       }
       if (!Cause.isInterruptedOnly(next.cause)) {
-        ref.current.currentDefectCount++
-        ref.current.currentErrorCount++
-        ref.current.runningErrorCount++
+        tracked.currentDefectCount++
+        tracked.currentErrorCount++
+        tracked.runningErrorCount++
       }
 
       break
     }
     case "Success": {
-      ref.current.currentFailureCount = 0
-      ref.current.currentDefectCount = 0
-      ref.current.dataUpdatedAt = Option.some(new Date())
+      tracked.currentFailureCount = 0
+      tracked.currentDefectCount = 0
+      tracked.dataUpdatedAt = Option.some(new Date())
       break
     }
   }
-  return next
 }
 
-export const useResultBag = <E, A>(result: Result.Result<E, A>) => {
-  const trackedPropsRef = useRef<TrackedProperties>(initial)
+export const makeResultBag = <E, A>(result: Result.Result<E, A>, tracked: TrackedProperties): ResultBag<E, A> => ({
+  result,
+  get isLoading() {
+    return Result.isLoading(result)
+  },
+  get isError() {
+    return Result.isError(result)
+  },
+  get isSuccess() {
+    return Result.isSuccess(result)
+  },
+  get isLoadingFailure() {
+    return Result.isRetrying(result) && Option.isNone(tracked.dataUpdatedAt)
+  },
+  get isRefreshing() {
+    return Result.isRefreshing(result)
+  },
+  get isRetrying() {
+    return Result.isRetrying(result)
+  },
+  get isRefreshingFailure() {
+    return Result.isRetrying(result)
+      && optionDateGreaterThan(tracked.dataUpdatedAt, tracked.errorUpdatedAt)
+  },
+  get dataUpdatedAt() {
+    return tracked.dataUpdatedAt
+  },
+  get errorUpdatedAt() {
+    return tracked.errorUpdatedAt
+  },
+  get failureCount() {
+    return tracked.currentFailureCount
+  },
+  get failureCause() {
+    return tracked.failureCause as Cause.Cause<E>
+  },
+  get errorRunningCount() {
+    return tracked.runningErrorCount
+  }
+})
 
-  const resultBag = useMemo((): ResultBag<E, A> => ({
-    result,
-    get isLoading() {
-      return Result.isLoading(result)
-    },
-    get isError() {
-      return Result.isError(result)
-    },
-    get isSuccess() {
-      return Result.isSuccess(result)
-    },
-    get isLoadingFailure() {
-      return Result.isRetrying(result) && Option.isNone(trackedPropsRef.current.dataUpdatedAt)
-    },
-    get isRefreshing() {
-      return Result.isRefreshing(result)
-    },
-    get isRetrying() {
-      return Result.isRetrying(result)
-    },
-    get isRefreshingFailure() {
-      return Result.isRetrying(result)
-        && optionDateGreaterThan(trackedPropsRef.current.dataUpdatedAt, trackedPropsRef.current.errorUpdatedAt)
-    },
-    get dataUpdatedAt() {
-      return trackedPropsRef.current.dataUpdatedAt
-    },
-    get errorUpdatedAt() {
-      return trackedPropsRef.current.errorUpdatedAt
-    },
-    get failureCount() {
-      return trackedPropsRef.current.currentFailureCount
-    },
-    get failureCause() {
-      return trackedPropsRef.current.failureCause as Cause.Cause<E>
-    },
-    get errorRunningCount() {
-      return trackedPropsRef.current.runningErrorCount
-    }
-  }), [result])
+export const useResultBag = <E, A>(result: Result.Result<E, A>) => {
+  const trackedPropsRef = useRef<TrackedProperties>(null as any)
+  if (trackedPropsRef.current === null) {
+    trackedPropsRef.current = initialTrackedProps()
+  }
+
+  const resultBag = useMemo(
+    (): ResultBag<E, A> => makeResultBag(result, trackedPropsRef.current),
+    [result]
+  )
 
   return [trackedPropsRef, resultBag] as const
 }

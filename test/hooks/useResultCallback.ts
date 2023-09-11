@@ -13,7 +13,7 @@ const foo = Context.Tag<Foo>()
 
 const { useResultCallback } = RuntimeProvider.makeFromLayer(Layer.succeed(foo, { value: 1 }))
 
-describe("useResult", () => {
+describe("useResultCallback", () => {
   it("should do good", async () => {
     const testEffect = (value: number) => Effect.succeed(value)
 
@@ -24,11 +24,11 @@ describe("useResult", () => {
       result.current[1](1)
     })
     await waitFor(() => expect(Result.isSuccess(result.current[0].result)).toBe(true))
-    expect(result.current[0].result.value).toBe(1)
+    expect(result.current[0].result._tag === "Success" && result.current[0].result.value).toBe(1)
     act(() => {
       result.current[1](2)
     })
     await waitFor(() => expect(Result.isSuccess(result.current[0].result)).toBe(true))
-    expect(result.current[0].result.value).toBe(2)
+    expect(result.current[0].result._tag === "Success" && result.current[0].result.value).toBe(2)
   })
 })
