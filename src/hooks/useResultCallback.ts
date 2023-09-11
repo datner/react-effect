@@ -1,20 +1,13 @@
+import * as Option from "@effect/data/Option"
 import * as Effect from "@effect/io/Effect"
-import * as Exit from "@effect/io/Exit"
 import * as Fiber from "@effect/io/Fiber"
-import * as Ref from "@effect/io/Ref"
 import * as Runtime from "@effect/io/Runtime"
 import * as Stream from "@effect/stream/Stream"
 import type { ResultBag } from "effect-react/hooks/useResultBag"
 import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
-import { useCallback, useContext, useEffect, useRef, useState } from "react"
-
-type FiberState<E> = { readonly _tag: "Idle" } | {
-  readonly _tag: "Running"
-  readonly fiber: Fiber.RuntimeFiber<E, void>
-  readonly interruptingRef: Ref.Ref<boolean>
-}
+import { useCallback, useContext, useEffect, useState } from "react"
 
 export type UseResultCallback<R> = <Args extends Array<any>, R0 extends R, E, A>(
   callback: (...args: Args) => Effect.Effect<R0, E, A>
@@ -32,57 +25,40 @@ export const makeUseResultCallback: <R>(
     const [trackRef, resultBag] = useResultBag(result)
     trackRef.current.currentStatus = result._tag
 
-    const fiberState = useRef<FiberState<E>>({ _tag: "Idle" })
-    useEffect(() =>
-      () => {
-        if (fiberState.current._tag === "Running") {
-          Effect.runSync(Ref.set(fiberState.current.interruptingRef, true))
-          Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
-        }
-      }, [])
-
     const runtime = useContext(runtimeContext)
-    const run = useCallback((...args: Args) => {
-      if (fiberState.current._tag === "Running") {
-        Effect.runSync(Ref.set(fiberState.current.interruptingRef, true))
-        Effect.runFork(Fiber.interruptFork(fiberState.current.fiber))
+    const [currentArgs, setCurrentArgs] = useState<Option.Option<Args>>(Option.none())
+    useEffect(() => {
+      if (Option.isNone(currentArgs)) {
+        return
       }
 
-      trackRef.current.invocationCount++
-
-      const interruptingRef = Ref.unsafeMake(false)
+      let interrupting = false
       const maybeSetResult = (result: Result.Result<E, A> | ((_: Result.Result<E, A>) => Result.Result<E, A>)) =>
-        Effect.flatMap(
-          Ref.get(interruptingRef),
-          (interrupting) =>
-            interrupting ? Effect.unit : Effect.sync(() => {
-              setResult(result)
-            })
-        )
+        Effect.sync(() => {
+          if (!interrupting) {
+            setResult(result)
+          }
+        })
 
       const fiber = Stream.suspend(() => {
         setResult((prev) => updateNext(Result.waiting(prev), trackRef))
-        return f(...args)
+        return f(...currentArgs.value)
       }).pipe(
         Stream.tap((value) => maybeSetResult(updateNext(Result.success(value), trackRef))),
         Stream.tapErrorCause((cause) => maybeSetResult(updateNext(Result.failCause(cause), trackRef))),
         Stream.runDrain,
-        Effect.onExit((exit) =>
-          Exit.isInterrupted(exit)
-            ? Effect.unit
-            : Effect.sync(() => {
-              fiberState.current = { _tag: "Idle" }
-            })
-        ),
         Runtime.runFork(runtime)
       )
 
-      fiberState.current = {
-        _tag: "Running",
-        fiber,
-        interruptingRef
+      return () => {
+        interrupting = true
+        Effect.runFork(Fiber.interruptFork(fiber))
       }
-    }, [f])
+    }, [currentArgs])
+
+    const run = useCallback((...args: Args) => {
+      setCurrentArgs(Option.some(args))
+    }, [])
 
     return [resultBag, run] as const
   }
