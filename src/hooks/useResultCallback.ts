@@ -1,13 +1,99 @@
-import * as Option from "@effect/data/Option"
 import * as Effect from "@effect/io/Effect"
-import * as Fiber from "@effect/io/Fiber"
+import type * as Fiber from "@effect/io/Fiber"
+import * as Ref from "@effect/io/Ref"
 import * as Runtime from "@effect/io/Runtime"
 import * as Stream from "@effect/stream/Stream"
 import type { ResultBag } from "effect-react/hooks/useResultBag"
-import { updateNext, useResultBag } from "effect-react/hooks/useResultBag"
+import { initialTrackedProps, makeResultBag, updateTrackedProps } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
-import { useCallback, useContext, useEffect, useState } from "react"
+import { useCallback, useContext, useRef, useSyncExternalStore } from "react"
+
+class FiberStore<R, E, A> {
+  constructor(
+    readonly runtime: Runtime.Runtime<R>
+  ) {}
+
+  listeners: Array<() => void> = []
+
+  subscribe = (listener: () => void) => {
+    this.listeners.push(listener)
+
+    return () => {
+      this.listeners.splice(this.listeners.indexOf(listener), 1)
+
+      queueMicrotask(() => {
+        if (this.listeners.length === 0) {
+          this.interruptIfRunning()
+        }
+      })
+    }
+  }
+
+  result: Result.Result<E, A> = Result.initial()
+  trackedProps = initialTrackedProps()
+  resultBag = makeResultBag(this.result, this.trackedProps)
+
+  setResult(result: Result.Result<E, A>) {
+    this.result = result
+    updateTrackedProps(result, this.trackedProps)
+    this.resultBag = makeResultBag(this.result, this.trackedProps)
+
+    for (let i = 0; i < this.listeners.length; i++) {
+      this.listeners[i]()
+    }
+  }
+  snapshot = () => {
+    return this.resultBag
+  }
+
+  fiberState:
+    | {
+      readonly fiber: Fiber.RuntimeFiber<E, void>
+      readonly interruptedRef: Ref.Ref<boolean>
+    }
+    | undefined = undefined
+
+  interruptIfRunning() {
+    if (this.fiberState) {
+      Effect.runSync(Ref.set(this.fiberState.interruptedRef, true))
+      Effect.runFork(
+        this.fiberState.fiber.interruptAsFork(this.fiberState.fiber.id())
+      )
+    }
+  }
+
+  run(stream: Stream.Stream<R, E, A>) {
+    this.interruptIfRunning()
+
+    const interruptedRef = Ref.unsafeMake(false)
+    const maybeSetResult = (result: Result.Result<E, A>) =>
+      Effect.flatMap(
+        Ref.get(interruptedRef),
+        (interrupted) =>
+          interrupted
+            ? Effect.unit
+            : Effect.sync(() => {
+              this.setResult(result)
+            })
+      )
+
+    const fiber = Stream.suspend(() => {
+      this.setResult(Result.waiting(this.result))
+      return stream
+    }).pipe(
+      Stream.tap((value) => maybeSetResult(Result.success(value))),
+      Stream.tapErrorCause((cause) => maybeSetResult(Result.failCause(cause))),
+      Stream.runDrain,
+      Runtime.runFork(this.runtime)
+    )
+
+    this.fiberState = {
+      fiber,
+      interruptedRef
+    }
+  }
+}
 
 export type UseResultCallback<R> = <Args extends Array<any>, R0 extends R, E, A>(
   callback: (...args: Args) => Effect.Effect<R0, E, A>
@@ -21,44 +107,17 @@ export const makeUseResultCallback: <R>(
   <Args extends Array<any>, R0 extends R, E, A>(
     f: (...args: Args) => Stream.Stream<R0, E, A>
   ) => {
-    const [result, setResult] = useState<Result.Result<E, A>>(Result.initial())
-    const [trackRef, resultBag] = useResultBag(result)
-    trackRef.current.currentStatus = result._tag
-
     const runtime = useContext(runtimeContext)
-    const [currentArgs, setCurrentArgs] = useState<Option.Option<Args>>(Option.none())
-    useEffect(() => {
-      if (Option.isNone(currentArgs)) {
-        return
-      }
-
-      let interrupting = false
-      const maybeSetResult = (result: Result.Result<E, A> | ((_: Result.Result<E, A>) => Result.Result<E, A>)) =>
-        Effect.sync(() => {
-          if (!interrupting) {
-            setResult(result)
-          }
-        })
-
-      const fiber = Stream.suspend(() => {
-        setResult((prev) => updateNext(Result.waiting(prev), trackRef))
-        return f(...currentArgs.value)
-      }).pipe(
-        Stream.tap((value) => maybeSetResult(updateNext(Result.success(value), trackRef))),
-        Stream.tapErrorCause((cause) => maybeSetResult(updateNext(Result.failCause(cause), trackRef))),
-        Stream.runDrain,
-        Runtime.runFork(runtime)
-      )
-
-      return () => {
-        interrupting = true
-        Effect.runFork(Fiber.interruptFork(fiber))
-      }
-    }, [f, currentArgs])
-
+    const storeRef = useRef<FiberStore<R0, E, A> | undefined>(undefined)
+    if (storeRef.current === undefined) {
+      storeRef.current = new FiberStore(runtime)
+    }
+    const resultBag = useSyncExternalStore(
+      storeRef.current!.subscribe,
+      storeRef.current!.snapshot
+    )
     const run = useCallback((...args: Args) => {
-      setCurrentArgs(Option.some(args))
-    }, [])
-
+      storeRef.current!.run(f(...args))
+    }, [f])
     return [resultBag, run] as const
   }
