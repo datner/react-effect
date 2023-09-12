@@ -1,4 +1,5 @@
 import { pipe } from "@effect/data/Function"
+import * as Hash from "@effect/data/Hash"
 import * as Effect from "@effect/io/Effect"
 import type * as Fiber from "@effect/io/Fiber"
 import * as Ref from "@effect/io/Ref"
@@ -8,6 +9,7 @@ import type { ResultBag } from "effect-react/hooks/useResultBag"
 import { initialTrackedProps, makeResultBag, updateTrackedProps } from "effect-react/hooks/useResultBag"
 import type { RuntimeContext } from "effect-react/internal/runtimeContext"
 import * as Result from "effect-react/Result"
+import type { DependencyList } from "react"
 import { useCallback, useContext, useRef, useSyncExternalStore } from "react"
 
 class FiberStore<R, E, A> {
@@ -124,4 +126,29 @@ export const makeUseResultCallback: <R>(
       storeRef.current.run(f(...args))
     }, [f])
     return [resultBag, run] as const
+  }
+
+export const makeUseResult = <R>(
+  runtimeContext: RuntimeContext<R>
+) =>
+  <R0 extends R, E, A>(
+    evaluate: () => Stream.Stream<R0, E, A>,
+    deps: DependencyList
+  ): ResultBag<E, A> => {
+    const runtime = useContext(runtimeContext)
+    const storeRef = useRef<FiberStore<R0, E, A>>(undefined as any)
+    if (storeRef.current === undefined) {
+      storeRef.current = new FiberStore(runtime)
+    }
+    const resultBag = useSyncExternalStore(
+      storeRef.current.subscribe,
+      storeRef.current.snapshot
+    )
+    const depsHash = useRef<number>(null as any)
+    const currentDepsHash = Hash.array(deps)
+    if (depsHash.current !== currentDepsHash) {
+      depsHash.current = currentDepsHash
+      storeRef.current.run(evaluate())
+    }
+    return resultBag
   }
