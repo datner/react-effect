@@ -23,12 +23,10 @@ describe("useResult", () => {
 
   it("should provide context", async () => {
     const testEffect = Effect.map(foo, (_) => _.value)
-
-    const renderResult = await waitFor(async () => renderHook(() => useResult(() => testEffect, [])))
-    const result = renderResult.result.current.result
-
-    await waitFor(() => expect(Result.isSuccess(result)).toBe(true))
-    expect(result._tag === "Success" && result.value).toBe(1)
+    const { result } = await waitFor(async () => renderHook(() => useResult(() => testEffect, [])))
+    await waitFor(() => expect(Result.isSuccess(result.current.result)).toBe(true))
+    assert(Result.isSuccess(result.current.result))
+    expect(result.current.result.value).toBe(1)
   })
 
   it("should run streams", async () => {
