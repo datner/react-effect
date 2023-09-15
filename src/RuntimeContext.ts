@@ -54,6 +54,17 @@ export const fromContext = <R>(
   context: Context.Context<R>
 ): RuntimeContext<R> => fromContextEffect(Effect.succeed(context))
 
+const makeRuntimeEffect = <R>(context: Effect.Effect<never, never, Context.Context<R>>): RuntimeEffect<R> => {
+  const runtime = pipe(
+    context,
+    Effect.flatMap((context) => Effect.provideContext(Effect.runtime<R>(), context)),
+    Effect.cached,
+    Effect.runSync
+  )
+  Effect.runFork(runtime) // prime cache
+  return runtime
+}
+
 /**
  * @since 1.0.0
  * @category constructors
@@ -70,23 +81,22 @@ export const fromContextEffect = <R, E>(
     }),
     scope
   )
-  const runtime = pipe(
-    context,
-    Effect.flatMap((context) => Effect.provideContext(Effect.runtime<R>(), context)),
-    Effect.cached,
-    Effect.runSync
-  )
-  // populate the cache
-  Effect.runFork(runtime)
-
+  const runtime = makeRuntimeEffect(context)
   const RuntimeContext = React.createContext(runtime)
-  return {
-    ...RuntimeContext,
-    [RuntimeContextTypeId]: {
-      scope,
-      context
+  return new Proxy(RuntimeContext, {
+    has(target, p) {
+      return p === RuntimeContextTypeId || p in target
+    },
+    get(target, p, _receiver) {
+      if (p === RuntimeContextTypeId) {
+        return {
+          scope,
+          context
+        }
+      }
+      return (target as any)[p]
     }
-  }
+  }) as any
 }
 
 /**
@@ -101,16 +111,45 @@ export const fromLayer = <R, E>(layer: Layer.Layer<never, E, R>): RuntimeContext
  * @category combinators
  */
 export const provideMerge = dual<
-  <R, RX extends R, R2, E2>(
-    layer: Layer.Layer<RX, E2, R2>
+  <R, RX extends R, R2, E>(
+    layer: Layer.Layer<RX, E, R2>
   ) => (self: RuntimeContext<R>) => RuntimeContext<R | R2>,
-  <R, RX extends R, R2, E2>(
+  <R, RX extends R, R2, E>(
     self: RuntimeContext<R>,
-    layer: Layer.Layer<RX, E2, R2>
+    layer: Layer.Layer<RX, E, R2>
   ) => RuntimeContext<R | R2>
 >(2, (self, layer) => {
   const context = self[RuntimeContextTypeId].context
   return fromLayer(Layer.provideMerge(Layer.effectContext(context), layer))
+})
+
+/**
+ * @since 1.0.0
+ * @category combinators
+ */
+export const toRuntimeEffect = <R>(
+  self: RuntimeContext<R>
+): RuntimeEffect<R> => makeRuntimeEffect(self[RuntimeContextTypeId].context)
+
+/**
+ * @since 1.0.0
+ * @category combinators
+ */
+export const overrideLayer = dual<
+  <R, RX extends R, E>(
+    layer: Layer.Layer<never, E, RX>
+  ) => (self: RuntimeContext<R>) => readonly [React.ExoticComponent<React.PropsWithChildren>, Scope.CloseableScope],
+  <R, E>(
+    self: RuntimeContext<R>,
+    layer: Layer.Layer<never, E, R>
+  ) => readonly [React.ExoticComponent<React.PropsWithChildren>, Scope.CloseableScope]
+>(2, (self, layer) => {
+  const context = fromLayer(layer)
+  const runtime = toRuntimeEffect(context)
+  return [
+    (props: React.PropsWithChildren) => React.createElement(self.Provider, { value: runtime }, props.children),
+    context[RuntimeContextTypeId].scope
+  ] as any
 })
 
 /**
@@ -133,7 +172,7 @@ export const close = <R>(self: RuntimeContext<R>): () => void => {
 
 /**
  * @since 1.0.0
- * @category combinators
+ * @category execution
  */
 export const runForkJoin = <R>(
   runtime: RuntimeEffect<R>

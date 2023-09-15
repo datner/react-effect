@@ -23,6 +23,19 @@ describe("useResult", () => {
     expect(Result.isSuccess(result.current.result)).toBe(true)
   })
 
+  it("override Provider value", async () => {
+    const [Override] = RuntimeContext.overrideLayer(context, Layer.succeed(foo, { value: 2 }))
+    const testEffect = Effect.map(foo, (_) => _.value)
+    const { result } = await waitFor(async () =>
+      renderHook(() => useResult(() => testEffect, []), {
+        wrapper: Override
+      })
+    )
+    await waitFor(() => expect(Result.isSuccess(result.current.result)).toBe(true))
+    assert(Result.isSuccess(result.current.result))
+    expect(result.current.result.value).toBe(2)
+  })
+
   it("should provide context", async () => {
     const testEffect = Effect.map(foo, (_) => _.value)
     const { result } = await waitFor(async () => renderHook(() => useResult(() => testEffect, [])))
