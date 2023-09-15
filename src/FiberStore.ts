@@ -1,7 +1,10 @@
-import type * as Runtime from "@effect/io/Runtime"
+/**
+ * @since 1.0.0
+ */
 import type * as Stream from "@effect/stream/Stream"
 import * as internal from "effect-react/internal/fiberStore"
 import type * as ResultBag from "effect-react/ResultBag"
+import type * as RuntimeContext from "effect-react/RuntimeContext"
 
 /**
  * @since 1.0.0
@@ -18,4 +21,4 @@ export interface FiberStore<R, E, A> {
  * @since 1.0.0
  * @category constructors
  */
-export const make: <R, E, A>(runtime: Runtime.Runtime<R>) => FiberStore<R, E, A> = internal.make
+export const make: <R, E, A>(runtime: RuntimeContext.RuntimeEffect<R>) => FiberStore<R, E, A> = internal.make

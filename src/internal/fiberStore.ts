@@ -2,21 +2,21 @@ import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import type * as Fiber from "@effect/io/Fiber"
 import * as Ref from "@effect/io/Ref"
-import * as Runtime from "@effect/io/Runtime"
 import * as Stream from "@effect/stream/Stream"
 import type * as FiberStore from "effect-react/FiberStore"
 import * as Result from "effect-react/Result"
 import * as ResultBag from "effect-react/ResultBag"
-import * as TrackedProperties from "effect-react/TrackedProperties"
+import * as TrackedProperties from "effect-react/ResultBag/TrackedProperties"
+import * as RuntimeContext from "effect-react/RuntimeContext"
 
 /** @internal */
 export const make = <R, E, A>(
-  runtime: Runtime.Runtime<R>
+  runtime: RuntimeContext.RuntimeEffect<R>
 ): FiberStore.FiberStore<R, E, A> => new FiberStoreImpl(runtime)
 
 class FiberStoreImpl<R, E, A> implements FiberStore.FiberStore<R, E, A> {
   constructor(
-    readonly runtime: Runtime.Runtime<R>
+    readonly runtime: RuntimeContext.RuntimeEffect<R>
   ) {}
 
   // listeners
@@ -82,8 +82,9 @@ class FiberStoreImpl<R, E, A> implements FiberStore.FiberStore<R, E, A> {
         return stream
       }),
       Stream.runForEach((_) => maybeSetResult(Result.success(_))),
+      RuntimeContext.runForkJoin(this.runtime),
       Effect.catchAllCause((cause) => maybeSetResult(Result.failCause(cause))),
-      Runtime.runFork(this.runtime)
+      Effect.runFork
     )
 
     this.fiberState = {

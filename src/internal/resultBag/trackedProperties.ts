@@ -1,7 +1,7 @@
 import * as Option from "@effect/data/Option"
 import * as Cause from "@effect/io/Cause"
 import type * as Result from "effect-react/Result"
-import type * as TrackedProperties from "effect-react/TrackedProperties"
+import type * as TrackedProperties from "effect-react/ResultBag/TrackedProperties"
 
 /** @internal */
 export const initial = (): TrackedProperties.TrackedProperties => ({
