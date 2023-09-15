@@ -27,10 +27,10 @@ export type RuntimeContextTypeId = typeof RuntimeContextTypeId
  * @since 1.0.0
  * @category models
  */
-export interface RuntimeContext<R, E> extends ReactContext<R, E> {
+export interface RuntimeContext<R> extends ReactContext<R> {
   readonly [RuntimeContextTypeId]: {
     readonly scope: Scope.CloseableScope
-    readonly context: Effect.Effect<never, E, Context.Context<R>>
+    readonly context: Effect.Effect<never, never, Context.Context<R>>
   }
 }
 
@@ -38,13 +38,13 @@ export interface RuntimeContext<R, E> extends ReactContext<R, E> {
  * @since 1.0.0
  * @category models
  */
-export type ReactContext<R, E> = React.Context<Effect.Effect<never, E, Runtime.Runtime<R>>>
+export type ReactContext<R> = React.Context<Effect.Effect<never, never, Runtime.Runtime<R>>>
 
 /**
  * @since 1.0.0
  * @category models
  */
-export type RuntimeEffect<R, E> = Effect.Effect<never, E, Runtime.Runtime<R>>
+export type RuntimeEffect<R> = Effect.Effect<never, never, Runtime.Runtime<R>>
 
 /**
  * @since 1.0.0
@@ -52,7 +52,7 @@ export type RuntimeEffect<R, E> = Effect.Effect<never, E, Runtime.Runtime<R>>
  */
 export const fromContext = <R>(
   context: Context.Context<R>
-): RuntimeContext<R, never> => fromContextEffect(Effect.succeed(context))
+): RuntimeContext<R> => fromContextEffect(Effect.succeed(context))
 
 /**
  * @since 1.0.0
@@ -60,9 +60,16 @@ export const fromContext = <R>(
  */
 export const fromContextEffect = <R, E>(
   effect: Effect.Effect<Scope.Scope, E, Context.Context<R>>
-): RuntimeContext<R, E> => {
+): RuntimeContext<R> => {
   const scope = Effect.runSync(Scope.make())
-  const context = Scope.use(effect, scope)
+  const error = new Error()
+  const context = Scope.use(
+    Effect.orDieWith(effect, (e) => {
+      error.message = `Could not build RuntimeContext: ${e}`
+      return error
+    }),
+    scope
+  )
   const runtime = pipe(
     context,
     Effect.flatMap((context) => Effect.provideContext(Effect.runtime<R>(), context)),
@@ -86,7 +93,7 @@ export const fromContextEffect = <R, E>(
  * @since 1.0.0
  * @category constructors
  */
-export const fromLayer = <R, E>(layer: Layer.Layer<never, E, R>): RuntimeContext<R, E> =>
+export const fromLayer = <R, E>(layer: Layer.Layer<never, E, R>): RuntimeContext<R> =>
   fromContextEffect(Effect.runSync(Effect.cached(Layer.build(layer))))
 
 /**
@@ -96,11 +103,11 @@ export const fromLayer = <R, E>(layer: Layer.Layer<never, E, R>): RuntimeContext
 export const provideMerge = dual<
   <R, RX extends R, R2, E2>(
     layer: Layer.Layer<RX, E2, R2>
-  ) => <E>(self: RuntimeContext<R, E>) => RuntimeContext<R | R2, E | E2>,
-  <R, E, RX extends R, R2, E2>(
-    self: RuntimeContext<R, E>,
+  ) => (self: RuntimeContext<R>) => RuntimeContext<R | R2>,
+  <R, RX extends R, R2, E2>(
+    self: RuntimeContext<R>,
     layer: Layer.Layer<RX, E2, R2>
-  ) => RuntimeContext<R | R2, E | E2>
+  ) => RuntimeContext<R | R2>
 >(2, (self, layer) => {
   const context = self[RuntimeContextTypeId].context
   return fromLayer(Layer.provideMerge(Layer.effectContext(context), layer))
@@ -110,14 +117,14 @@ export const provideMerge = dual<
  * @since 1.0.0
  * @category combinators
  */
-export const closeEffect = <R, E>(self: RuntimeContext<R, E>): Effect.Effect<never, never, void> =>
+export const closeEffect = <R>(self: RuntimeContext<R>): Effect.Effect<never, never, void> =>
   Scope.close(self[RuntimeContextTypeId].scope, Exit.unit)
 
 /**
  * @since 1.0.0
  * @category combinators
  */
-export const close = <R, E>(self: RuntimeContext<R, E>): () => void => {
+export const close = <R>(self: RuntimeContext<R>): () => void => {
   const effect = closeEffect(self)
   return () => {
     Effect.runFork(effect)
@@ -128,10 +135,10 @@ export const close = <R, E>(self: RuntimeContext<R, E>): () => void => {
  * @since 1.0.0
  * @category combinators
  */
-export const runForkJoin = <R, RE>(
-  runtime: RuntimeEffect<R, RE>
+export const runForkJoin = <R>(
+  runtime: RuntimeEffect<R>
 ) =>
-  <RX extends R, E, A>(effect: Effect.Effect<RX, E, A>): Effect.Effect<never, RE | E, A> =>
+  <RX extends R, E, A>(effect: Effect.Effect<RX, E, A>): Effect.Effect<never, E, A> =>
     Effect.flatMap(
       runtime,
       (runtime) => {

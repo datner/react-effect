@@ -21,4 +21,4 @@ export interface FiberStore<R, E, A> {
  * @since 1.0.0
  * @category constructors
  */
-export const make: <R, E, A>(runtime: RuntimeContext.RuntimeEffect<R, E>) => FiberStore<R, E, A> = internal.make
+export const make: <R, E, A>(runtime: RuntimeContext.RuntimeEffect<R>) => FiberStore<R, E, A> = internal.make

@@ -11,12 +11,12 @@ import * as RuntimeContext from "effect-react/RuntimeContext"
 
 /** @internal */
 export const make = <R, E, A>(
-  runtime: RuntimeContext.RuntimeEffect<R, E>
+  runtime: RuntimeContext.RuntimeEffect<R>
 ): FiberStore.FiberStore<R, E, A> => new FiberStoreImpl(runtime)
 
 class FiberStoreImpl<R, E, A> implements FiberStore.FiberStore<R, E, A> {
   constructor(
-    readonly runtime: RuntimeContext.RuntimeEffect<R, E>
+    readonly runtime: RuntimeContext.RuntimeEffect<R>
   ) {}
 
   // listeners

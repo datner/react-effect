@@ -7,33 +7,33 @@ import type { DependencyList } from "react"
 import { useCallback, useContext, useRef, useSyncExternalStore } from "react"
 
 /** @internal */
-export const make = <R, RE>(
-  runtimeContext: RuntimeContext.ReactContext<R, RE>
+export const make = <R>(
+  runtimeContext: RuntimeContext.ReactContext<R>
 ): {
   useResult: <R0 extends R, E, A>(
     evaluate: () => Stream.Stream<R0, E, A>,
     deps: DependencyList
-  ) => ResultBag.ResultBag<RE | E, A>
+  ) => ResultBag.ResultBag<unknown, A>
   useResultCallback: <Args extends Array<any>, R0 extends R, E, A>(
     f: (...args: Args) => Stream.Stream<R0, E, A>
-  ) => readonly [ResultBag.ResultBag<RE | E, A>, (...args: Args) => void]
+  ) => readonly [ResultBag.ResultBag<unknown, A>, (...args: Args) => void]
 } => ({
   useResult: makeUseResult(runtimeContext),
   useResultCallback: makeUseResultCallback(runtimeContext)
 })
 
 /** @internal */
-export const makeUseResult = <R, RE>(
-  runtimeContext: RuntimeContext.ReactContext<R, RE>
+export const makeUseResult = <R>(
+  runtimeContext: RuntimeContext.ReactContext<R>
 ) =>
   <R0 extends R, E, A>(
     evaluate: () => Stream.Stream<R0, E, A>,
     deps: DependencyList
-  ): ResultBag.ResultBag<RE | E, A> => {
+  ): ResultBag.ResultBag<E, A> => {
     const runtime = useContext(runtimeContext)
-    const storeRef = useRef<FiberStore.FiberStore<R0, E | RE, A>>(undefined as any)
+    const storeRef = useRef<FiberStore.FiberStore<R0, E, A>>(undefined as any)
     if (storeRef.current === undefined) {
-      storeRef.current = FiberStore.make<R0, E | RE, A>(runtime)
+      storeRef.current = FiberStore.make(runtime)
     }
     const resultBag = useSyncExternalStore(
       storeRef.current.subscribe,
@@ -49,16 +49,16 @@ export const makeUseResult = <R, RE>(
   }
 
 /** @internal */
-export const makeUseResultCallback = <R, RE>(
-  runtimeContext: RuntimeContext.ReactContext<R, RE>
+export const makeUseResultCallback = <R>(
+  runtimeContext: RuntimeContext.ReactContext<R>
 ) =>
   <Args extends Array<any>, R0 extends R, E, A>(
     f: (...args: Args) => Stream.Stream<R0, E, A>
-  ): readonly [ResultBag.ResultBag<RE | E, A>, (...args: Args) => void] => {
+  ): readonly [ResultBag.ResultBag<E, A>, (...args: Args) => void] => {
     const runtime = useContext(runtimeContext)
-    const storeRef = useRef<FiberStore.FiberStore<R0, RE | E, A>>(undefined as any)
+    const storeRef = useRef<FiberStore.FiberStore<R0, E, A>>(undefined as any)
     if (storeRef.current === undefined) {
-      storeRef.current = FiberStore.make<R0, RE | E, A>(runtime)
+      storeRef.current = FiberStore.make(runtime)
     }
     const resultBag = useSyncExternalStore(
       storeRef.current.subscribe,
