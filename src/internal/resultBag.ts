@@ -5,7 +5,7 @@ import * as Order from "@effect/data/Order"
 import type * as Cause from "@effect/io/Cause"
 import * as Result from "effect-react/Result"
 import type * as ResultBag from "effect-react/ResultBag"
-import type * as TrackedProperties from "effect-react/TrackedProperties"
+import type * as TrackedProperties from "effect-react/ResultBag/TrackedProperties"
 
 const optionDateGreaterThan = pipe(
   N.Order,

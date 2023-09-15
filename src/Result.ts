@@ -1,3 +1,6 @@
+/**
+ * @since 1.0.0
+ */
 import type * as Data from "@effect/data/Data"
 import type * as Option from "@effect/data/Option"
 import type { Pipeable } from "@effect/data/Pipeable"

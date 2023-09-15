@@ -1,8 +1,11 @@
+/**
+ * @since 1.0.0
+ */
 import type * as Option from "@effect/data/Option"
 import type * as Cause from "@effect/io/Cause"
 import * as internal from "effect-react/internal/resultBag"
 import type * as Result from "effect-react/Result"
-import type * as TrackedProperties from "effect-react/TrackedProperties"
+import type * as TrackedProperties from "effect-react/ResultBag/TrackedProperties"
 
 /**
  * @since 1.0.0
