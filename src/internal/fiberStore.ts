@@ -82,7 +82,7 @@ class FiberStoreImpl<R, E, A> implements FiberStore.FiberStore<R, E, A> {
         return stream
       }),
       Stream.runForEach((_) => maybeSetResult(Result.success(_))),
-      RuntimeContext.provide(this.runtime),
+      RuntimeContext.runForkJoin(this.runtime),
       Effect.catchAllCause((cause) => maybeSetResult(Result.failCause(cause))),
       Effect.runFork
     )

@@ -93,7 +93,7 @@ export const fromLayer = <R, E>(layer: Layer.Layer<never, E, R>): RuntimeContext
  * @since 1.0.0
  * @category combinators
  */
-export const use = dual<
+export const provideMerge = dual<
   <R, RX extends R, R2, E2>(
     layer: Layer.Layer<RX, E2, R2>
   ) => <E>(self: RuntimeContext<R, E>) => RuntimeContext<R | R2, E | E2>,
@@ -128,7 +128,7 @@ export const close = <R, E>(self: RuntimeContext<R, E>): () => void => {
  * @since 1.0.0
  * @category combinators
  */
-export const provide = <R, RE>(
+export const runForkJoin = <R, RE>(
   runtime: RuntimeEffect<R, RE>
 ) =>
   <RX extends R, E, A>(effect: Effect.Effect<RX, E, A>): Effect.Effect<never, RE | E, A> =>
