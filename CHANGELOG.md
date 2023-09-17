@@ -1,5 +1,13 @@
 # react-effect
 
+## 0.0.7
+
+### Patch Changes
+
+- [#13](https://github.com/datner/react-effect/pull/13) [`25dc7a3`](https://github.com/datner/react-effect/commit/25dc7a32b8461d62d043c5cccd668a047ddea799) Thanks [@datner](https://github.com/datner)! - add useValue and useService
+
+- [#10](https://github.com/datner/react-effect/pull/10) [`f70c207`](https://github.com/datner/react-effect/commit/f70c207675889a1365fed4145479b199f1d3f103) Thanks [@tim-smart](https://github.com/tim-smart)! - useSyncExternalStore for useReactCallback
+
 ## 0.0.6
 
 ### Patch Changes
